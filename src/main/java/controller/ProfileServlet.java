@@ -1,5 +1,6 @@
 package controller;
 
+import com.google.gson.Gson;
 import dao.JoueurDao;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -48,6 +49,25 @@ public class ProfileServlet extends HttpServlet {
 //
 //      //processRequest(req, resp);
 //   }
+
+   @Override
+   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+      resp.setContentType("application/json");
+      String pseudo = req.getParameter("username");
+      Joueur joueur = joueurDao.findByPseudo(pseudo);
+      PrintWriter out = resp.getWriter();
+
+      if (joueur != null) {
+         Gson gson = new Gson();
+         String joueurJson = gson.toJson(joueur);
+         out.print(joueurJson);
+      } else {
+         // Handle case where user is not found
+         resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
+         out.print("{}");
+      }
+      out.flush();
+   }
 
 //   protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 //      try (PrintWriter out = response.getWriter()) {

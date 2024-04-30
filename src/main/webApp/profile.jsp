@@ -5,7 +5,34 @@
     <title>Profile</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css"
           integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            var username = '<%= (String) session.getAttribute("username") %>';
+            console.log(username)
+            $.ajax({
+                url: '/LearnSocket_war_exploded/profileServlet',
+                type: 'GET',
+                data: {username: username},
+                success: function(joueur) {
+                    $('#fullName').val(joueur.pseudo);
+                    $('#age').val(joueur.âge);
+                    $('#genre').val(joueur.genre);
+                    $('#nbrPart').val(joueur.nombrePartiesJouées);
+                    $('#nbrVict').val(joueur.nombreVictoires);
+                    $('#moy').val(joueur.scoreMoyen);
+                    $('#clcReussi').val(joueur.ratioClicRéussi);
+                    $('#clcRapide').val(joueur.ratioClicRapide);
 
+
+                    console.log('Data loaded successfully');
+                },
+                error: function() {
+                    alert('Error loading data');
+                }
+            });
+        });
+    </script>
     <!-- Ajoutez ici vos références CSS ou tout autre élément de tête nécessaire -->
 </head>
 <style>
@@ -81,18 +108,18 @@
     }
 </style>
 <body>
-<%
-    // Supposons que ces attributs soient déjà définis dans votre session
-    String pseudo = (String) session.getAttribute("pseudo");
-    int age = (int) session.getAttribute("age");
-    int nbrPartieJouées = (int) session.getAttribute("nbrPartieJouées");
-    String genre = (String) session.getAttribute("genre");
-    int nbrVictoire = (int) session.getAttribute("nbrVictoire");
-    double ratioClicRapide = (double) session.getAttribute("ratioClicRapide");
-    double ratioClicReussi = (double) session.getAttribute("ratioClicReussi");
-    double scoreMoy = (double) session.getAttribute("scoreMoy");
+<%--<%--%>
+<%--    // Supposons que ces attributs soient déjà définis dans votre session--%>
+    <% String pseudo = (String) session.getAttribute("pseudo"); %>
+<%--    int age = (int) session.getAttribute("age");--%>
+<%--    int nbrPartieJouées = (int) session.getAttribute("nbrPartieJouées");--%>
+<%--    String genre = (String) session.getAttribute("genre");--%>
+<%--    int nbrVictoire = (int) session.getAttribute("nbrVictoire");--%>
+<%--    double ratioClicRapide = (double) session.getAttribute("ratioClicRapide");--%>
+<%--    double ratioClicReussi = (double) session.getAttribute("ratioClicReussi");--%>
+<%--    double scoreMoy = (double) session.getAttribute("scoreMoy");--%>
 
-%>
+<%--%>--%>
 <div class="container">
     <%-- Success message display --%>
     <%
@@ -136,19 +163,19 @@
                             <div class="col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12">
                                 <div class="form-group">
                                     <label for="fullName">Pseudo</label>
-                                    <input type="text" readonly class="form-control" name="pseudo" value="<%=pseudo %>" id="fullName">
+                                    <input type="text" readonly class="form-control" name="pseudo"  id="fullName">
                                 </div>
                             </div>
                             <div class="col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12">
                                 <div class="form-group">
                                     <label for="age">Age</label>
-                                    <input type="number" value="<%=age%>" name="age" class="form-control" id="age">
+                                    <input type="number" name="age" class="form-control" id="age">
                                 </div>
                             </div>
                             <div class="col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12">
                                 <div class="form-group">
                                     <label for="genre">genre</label>
-                                    <input type="text" class="form-control" name="genre" id="genre" value="<%=genre %>">
+                                    <input type="text" class="form-control" name="genre" id="genre" >
                                 </div>
                             </div>
                             <div class="col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12">
@@ -167,34 +194,34 @@
                             <div class="col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12">
                                 <div class="form-group">
                                     <label for="nbrPart">Nombre de parties jouées</label>
-                                    <input type="name" class="form-control" value="<%=nbrPartieJouées %>" readonly
+                                    <input type="name" class="form-control"  readonly
                                            id="nbrPart">
                                 </div>
                             </div>
                             <div class="col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12">
                                 <div class="form-group">
                                     <label for="nbrVict">Nombre de victoires</label>
-                                    <input type="name" class="form-control" value="<%=nbrVictoire %>" readonly
+                                    <input type="name" class="form-control" readonly
                                            id="nbrVict">
                                 </div>
                             </div>
                             <div class="col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12">
                                 <div class="form-group">
                                     <label for="moy">Score Moyen</label>
-                                    <input type="name" class="form-control" value="<%=scoreMoy %>" readonly id="moy">
+                                    <input type="name" class="form-control"  readonly id="moy">
                                 </div>
                             </div>
                             <div class="col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12">
                                 <div class="form-group">
                                     <label for="clcReussi">RatioClicRéussi</label>
-                                    <input type="name" class="form-control" value="<%=ratioClicReussi %>" readonly
+                                    <input type="name" class="form-control"  readonly
                                            id="clcReussi">
                                 </div>
                             </div>
                             <div class="col-xl-6 col-lg-6 col-md-6 col-sm-6 col-12">
                                 <div class="form-group">
                                     <label for="clcRapide">RatioClicRapide</label>
-                                    <input type="name" value="<%=ratioClicRapide %>" readonly class="form-control"
+                                    <input type="name"  readonly class="form-control"
                                            id="clcRapide">
                                 </div>
                             </div>
@@ -215,34 +242,32 @@
         </div>
     </form>
 </div>
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
-        integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
-        crossorigin="anonymous"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx"
         crossorigin="anonymous"></script>
 <%-- Vanilla JavaScript to hide the message after 3 seconds --%>
 <script>
-    window.onload = function() {
-        // Redirect to the ProfileServlet with the username as a parameter
-        // Check if the success message exists
-        var successMsg = document.getElementById('successMessage');
-        if (successMsg) {
-            setTimeout(function() {
-                var fadeEffect = setInterval(function () {
-                    if (!successMsg.style.opacity) {
-                        successMsg.style.opacity = 1;
-                    }
-                    if (successMsg.style.opacity > 0) {
-                        successMsg.style.opacity -= 0.1;
-                    } else {
-                        clearInterval(fadeEffect);
-                        successMsg.style.display = 'none'; // Optionally hide it completely after fading
-                    }
-                }, 100);
-            }, 3000);
-        }
-    };
+    // window.onload = function() {
+    //     // Redirect to the ProfileServlet with the username as a parameter
+    //     // Check if the success message exists
+    //     var successMsg = document.getElementById('successMessage');
+    //     if (successMsg) {
+    //         setTimeout(function() {
+    //             var fadeEffect = setInterval(function () {
+    //                 if (!successMsg.style.opacity) {
+    //                     successMsg.style.opacity = 1;
+    //                 }
+    //                 if (successMsg.style.opacity > 0) {
+    //                     successMsg.style.opacity -= 0.1;
+    //                 } else {
+    //                     clearInterval(fadeEffect);
+    //                     successMsg.style.display = 'none'; // Optionally hide it completely after fading
+    //                 }
+    //             }, 100);
+    //         }, 3000);
+    //     }
+    // };
 
     <%--window.onload = function() {--%>
     <%--    var username = '<%= (String) session.getAttribute("pseudo") %>';--%>
