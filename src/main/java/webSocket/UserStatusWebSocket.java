@@ -2,11 +2,16 @@ package webSocket;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import dto.CardTables;
-import dto.CenterCard;
-import dto.UserCard;
+import dao.JoueurDao;
+import dao.ParticipationDAO;
+import dao.PartieDao;
+import dto.*;
+import jakarta.servlet.http.HttpSession;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
+import model.Joueur;
+import model.Participation;
+import model.Partie;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -31,6 +36,8 @@ public class UserStatusWebSocket {
     private static int combinaison = 0;
 
     private static int nbrUsers=0;
+
+    private static Set<String> processedUsers = new HashSet<>(); // To keep track of processed users
 
     @OnOpen
     public void onOpen(Session session, EndpointConfig config){
@@ -130,22 +137,62 @@ public class UserStatusWebSocket {
 
         // Extracting the 'resultat' data which is expected to be a Map encoded as a JSON object.
         Object rawResultat = data.get("resultat");
+        Object partieDetailsObject = data.get("partieDetails");
+        String partieDetailsJson = gson.toJson(partieDetailsObject);  // Convert it back to JSON string if it's not.
+        PartieDetails partieDetails = gson.fromJson(partieDetailsJson, PartieDetails.class);  // Convert JSON string to PartieDetails object
+
+        System.out.println("***** Number Of tours:" +partieDetails.getNumberTours());
         String jsonResultat = gson.toJson(rawResultat);  // Convert it back to JSON string if it's not.
         Type scoreType = new TypeToken<Map<String, Double>>() {}.getType();
         Map<String, Double> scores = gson.fromJson(jsonResultat, scoreType);
 
         String winner = null, loser = null;
         double maxScore = Double.MIN_VALUE, minScore = Double.MAX_VALUE;
+        String modeJeu = "Normal"; // Your mode of game
+        // Saving partie
+        Partie p = PartieManager.getPartie(partieDetails.getNumberTours(), timer, modeJeu);
+        p.setDateHeure();
+
+        PartieDao partieDao = new PartieDao();
+
+        partieDao.save(p);
+
+        ParticipationDAO participationDAO=new ParticipationDAO();
+        JoueurDao joueurDao=new JoueurDao();
+
 
         // Iterate through the scores to find the winner and loser
         for (Map.Entry<String, Double> entry : scores.entrySet()) {
+            String userPseudo = entry.getKey();
+
             if (entry.getValue() > maxScore) {
                 maxScore = entry.getValue();
                 winner = entry.getKey();
+
             }
             if (entry.getValue() < minScore) {
                 minScore = entry.getValue();
                 loser = entry.getKey();
+            }
+            // Saving pariticipation
+            if (!processedUsers.contains(userPseudo)) { // Check if the user has not been processed
+                processedUsers.add(userPseudo); // Mark the user as processed
+
+                Joueur j = joueurDao.findByPseudo(userPseudo);
+                j.setNombrePartiesJouées(j.getNombrePartiesJouées()+1);
+                j.setRatioClicRéussi(12.8);
+                j.setScoreMoyen(12.6);
+                j.setNombreVictoires(20);
+                j.setRatioClicRapide(82.9);
+                if (j != null) {
+                    Participation pa = new Participation();
+                    pa.setJoueur(j);
+                    pa.setPartie(p); // Assuming 'p' is your current game session object
+                    pa.setScore((int) Math.round(entry.getValue()));
+                    participationDAO.save(pa);
+                } else {
+                    System.err.println("User not found: " + userPseudo);
+                }
             }
         }
 

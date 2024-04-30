@@ -196,7 +196,8 @@
                     socket.send(JSON.stringify({ action: 'finTour', scoresUpdate: playerscores,playerCards:playerCards,currentTour:currentTour }));
                    // Reset the timer as we move to the next round
                 } else {
-                    socket.send(JSON.stringify({action:'finPartie',resultat:playerscores}))
+                    const partieDetails={numberTours,timerDuration}
+                    socket.send(JSON.stringify({action:'finPartie',resultat:playerscores,partieDetails:partieDetails}))
                     //alert("Game Over. Final scores: " + JSON.stringify(playerscores));
                 }
             }

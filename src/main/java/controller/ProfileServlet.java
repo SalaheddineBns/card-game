@@ -25,32 +25,50 @@ public class ProfileServlet extends HttpServlet {
       joueurDao = new JoueurDao();
    }
 
-   @Override
-   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-      super.doGet(req, resp);
-      processRequest(req, resp);
-   }
+//   @Override
+//   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+//      String pseudo = req.getParameter("username");
+//      Joueur joueur=joueurDao.findByPseudo(pseudo);
+//
+//      HttpSession s = req.getSession();
+//
+//      s.setAttribute("currentJoueur",joueur);
+//      s.setAttribute("pseudo", joueur.getPseudo()); // Stocker l'utilisateur dans la session
+//      s.setAttribute("age",joueur.getÂge());
+//      s.setAttribute("nbrPartieJouées",joueur.getNombrePartiesJouées());
+//      s.setAttribute("genre",joueur.getGenre());
+//      s.setAttribute("nbrVictoire",joueur.getNombreVictoires());
+//      s.setAttribute("ratioClicReussi",joueur.getRatioClicRéussi());
+//      s.setAttribute("scoreMoy",joueur.getScoreMoyen());
+//
+//      req.getRequestDispatcher("profile.jsp").forward(req, resp);  // Assuming 'profile.jsp' is the view for showing the profile
+//
+//
+//      // In your ProfileServlet's doPost method after successful update
+//
+//      //processRequest(req, resp);
+//   }
 
-   protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-      try (PrintWriter out = response.getWriter()) {
-
-         String pseudo = (String) request.getSession().getAttribute("pseudo");
-         JoueurDao joueurDao = new JoueurDao();
-         Joueur joueur = joueurDao.findByPseudo(pseudo);
-
-         out.println("<!DOCTYPE html>");
-         out.println("<html>");
-         out.println("<head>");
-         out.println("<title>Servlet WebController</title>");
-         out.println("</head>");
-         out.println("<body>");
-         out.println("<h1>" + joueur.getPseudo() + "</h1>");
-         out.println("<h2>" + joueur.getÂge() + "</h2>");
-         out.println("</body>");
-         out.println("</html>");
-      } catch (IOException e) {
-      }
-   }
+//   protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+//      try (PrintWriter out = response.getWriter()) {
+//
+//         String pseudo = (String) request.getSession().getAttribute("pseudo");
+//         JoueurDao joueurDao = new JoueurDao();
+//         Joueur joueur = joueurDao.findByPseudo(pseudo);
+//
+//         out.println("<!DOCTYPE html>");
+//         out.println("<html>");
+//         out.println("<head>");
+//         out.println("<title>Servlet WebController</title>");
+//         out.println("</head>");
+//         out.println("<body>");
+//         out.println("<h1>" + joueur.getPseudo() + "</h1>");
+//         out.println("<h2>" + joueur.getÂge() + "</h2>");
+//         out.println("</body>");
+//         out.println("</html>");
+//      } catch (IOException e) {
+//      }
+//   }
 
    @Override
    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {

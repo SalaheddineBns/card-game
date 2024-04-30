@@ -28,11 +28,16 @@ public class Partie {
     @Column(name = "NombreCombinaisons")
     private int nombreCombinaisons;
 
-    @Column(name = "ModeJeu")
+    @Column(name = "ModeJeu",nullable = false)
     private String modeJeu;
 
     @OneToMany(mappedBy = "partie", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Set<Tour> tours; // The list of tours associated with this partie
+
+    public void setDateHeure() {
+        this.dateHeure = new Timestamp(System.currentTimeMillis());
+    }
+
 
 
 }

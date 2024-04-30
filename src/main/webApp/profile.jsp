@@ -224,6 +224,7 @@
 <%-- Vanilla JavaScript to hide the message after 3 seconds --%>
 <script>
     window.onload = function() {
+        // Redirect to the ProfileServlet with the username as a parameter
         // Check if the success message exists
         var successMsg = document.getElementById('successMessage');
         if (successMsg) {
@@ -242,6 +243,11 @@
             }, 3000);
         }
     };
+
+    <%--window.onload = function() {--%>
+    <%--    var username = '<%= (String) session.getAttribute("pseudo") %>';--%>
+    <%--    window.location.href = '/profileServlet?username=' + encodeURIComponent(username);--%>
+    <%--};--%>
 </script>
 </body>
 </html>
