@@ -1,7 +1,10 @@
-package com.example.learnsocket;
+package webSocket;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import dto.CardTables;
+import dto.CenterCard;
+import dto.UserCard;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
 
@@ -22,6 +25,12 @@ public class UserStatusWebSocket {
     private static final Gson gson = new Gson();
 
     private static Set<String> players;
+
+    private static int nbrTour = 0;
+    private static int timer = 0;
+    private static int combinaison = 0;
+
+    private static int nbrUsers=0;
 
     @OnOpen
     public void onOpen(Session session, EndpointConfig config){
@@ -172,6 +181,17 @@ public class UserStatusWebSocket {
         }
     }
     private void handleInvite(Session session, Map<String, Object> data) throws IOException {
+// Extract gameDetails as a Map
+        Map<String, Object> gameDetails = (Map<String, Object>) data.get("gameDetails");
+
+        if (gameDetails != null) {
+            nbrTour = Integer.parseInt((String) gameDetails.get("nbrPartie"));
+            timer = Integer.parseInt((String) gameDetails.get("timer"));
+            combinaison = Integer.parseInt((String) gameDetails.get("combinaison"));
+
+            // Debug output to check values
+            System.out.println("Game Details - Number of Games: " + nbrTour + ", Timer: " + timer + ", Combinations: " + combinaison);
+        }
         String senderUsername = (String) session.getUserProperties().get("username");
         System.out.println("Invite Par" + senderUsername);
         Set<String> currentInvitations = new HashSet<>();
@@ -185,6 +205,7 @@ public class UserStatusWebSocket {
         }
         invitations.put(senderUsername, currentInvitations);
         acceptedInvitations.put(senderUsername, new HashSet<>());
+
     }
 
     private void handleResponse(Session session, Map<String, Object> data) throws IOException {
@@ -196,7 +217,9 @@ public class UserStatusWebSocket {
             if (accepted != null) {
                 accepted.add(responderUsername);
                 if (accepted.size() == invitations.get(senderUsername).size()) {
-                    beginGame(senderUsername, 3, 2);
+                    nbrUsers=accepted.size()+1;
+                    System.out.println("Nbr Users is "+nbrUsers);
+                    beginGame(senderUsername, nbrTour, nbrUsers,timer);
                 }
             }
         }
@@ -257,7 +280,7 @@ public class UserStatusWebSocket {
         return new CardTables(cartes, centerCartes);
     }
     // correct this for number of users
-    public void beginGame(String senderUsername, int nbrTours,int nbrUsers) {
+    public void beginGame(String senderUsername, int nbrTours,int nbrUsers,int timer) {
         // List Of Existing letters
         char[] letters={'A','B','C','D','E','F','H','I','J','K','L'};
         String[] colors={"red","blue","green"};
@@ -292,6 +315,7 @@ public class UserStatusWebSocket {
         gameInfo.put("nbrTours",nbrTours);
         gameInfo.put("playerCards", userCards);
         gameInfo.put("centreCard", centerCard);
+        gameInfo.put("timer",timer);
 
         // Initialize scores to 0
         Map<String, Integer> initialScores = new HashMap<>();

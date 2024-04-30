@@ -1,6 +1,6 @@
 package controller;
 
-import com.example.learnsocket.UserStatusWebSocket;
+import webSocket.UserStatusWebSocket;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -11,7 +11,8 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.Map;
 
-import static com.example.learnsocket.LoginServlet.sessions;
+import static controller.LoginServlet.sessions;
+
 
 @WebServlet(name = "LogoutServlet", urlPatterns = {"/logout"})
 public class LogoutServlet extends HttpServlet {

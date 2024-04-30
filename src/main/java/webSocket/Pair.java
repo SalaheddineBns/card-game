@@ -1,4 +1,4 @@
-package com.example.learnsocket;
+package webSocket;
 
 class Pair<T, U> {
     private T first;

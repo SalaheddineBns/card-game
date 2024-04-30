@@ -35,29 +35,52 @@
             display: block;
             margin: 20px auto;
         }
-        #notification {
-            transition: opacity 0.5s;
-        }
+
 
     </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-<h1>Game has started!</h1>
-<h2 >Tour <span id="tour"> </span> </h2>
-<h3>Im the user </h3>
-<div id="timerDisplay" style="font-size: 24px; font-weight: bold; text-align: center; margin: 20px;">
-    Time left: <span id="time">10</span> seconds
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">Card Game</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="#">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Profile</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Game has started!</h1>
+    <div class="game-info d-flex justify-content-around align-items-center mb-4">
+        <h2>Tour <span id="tour">1</span></h2>
+        <h3>Im the user: <span id="current-user">Username</span></h3>
+        <div id="timerDisplay">Time left: <span id="time">10</span> seconds</div>
+    </div>
+
+    <div id="centerLetter" class="center-letter mb-3"></div>
+
+    <div id="playerScores" class="player-scores mb-3"></div>
+    <div id="playerLetters" class="player-letters mb-3"></div>
+
+    <div class="text-center">
+        <button id="sameColor" onclick="handleSameColorButton(localStorage.getItem('username'))" class="btn btn-primary">The Same Color</button>
+        <button id="sameFormat" onclick="handleSameFormatButton(localStorage.getItem('username'))" class="btn btn-primary">The Same Format</button>
+        <button id="both" onclick="handleboth(localStorage.getItem('username'))" class="btn btn-primary">The Two</button>
+    </div>
+
+    <div id="notification" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: black; color: white; padding: 20px; border-radius: 10px; z-index: 1000;">Notification</div>
 </div>
-<div id="playerScores"></div>
-<div id="centerLetter"></div>
-<div id="playerLetters"></div>
-
-<button id="sameColor" onclick="handleSameColorButton(localStorage.getItem('username'))">The Same Color</button>
-<button id="sameFormat" onclick="handleSameFormatButton(localStorage.getItem('username'))">The Same Format</button>
-<button id="both" onclick="handleboth(localStorage.getItem('username'))">The Two</button>
-
-<div id="notification" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: black; color: white; padding: 20px; border-radius: 10px; z-index: 1000;">Notification</div>
-
 <button id="scoreButton">card</button>
 
 <script>
@@ -66,7 +89,7 @@
     let currentTour = 0;
     let currentCarte=0;
     let centerCarte;
-    let timerDuration = 20; // Timer duration in seconds
+    let timerDuration =0 ; // Timer duration in seconds
     let countdown; // Variable to hold the countdown interval
     let playerscores={};
     let playerCards=[];
@@ -88,6 +111,7 @@
         playerCards = JSON.parse(localStorage.getItem('playerCards') || '[]');
         centerCarte=JSON.parse(localStorage.getItem('centreCard'))
         numberTours=JSON.parse(localStorage.getItem('nbrTours'))
+        timerDuration=JSON.parse(localStorage.getItem('timer') || 0);
 
         setCenterCarte(centerCarte);
         //tour.innerText = currentTour + 1; // Display current tour, human-readable (starting from 1)

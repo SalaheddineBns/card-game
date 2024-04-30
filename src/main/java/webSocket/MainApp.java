@@ -1,4 +1,4 @@
-package com.example.learnsocket;
+package webSocket;
 
 public class MainApp {
 

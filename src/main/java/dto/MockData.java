@@ -1,4 +1,4 @@
-package com.example.learnsocket;
+package dto;
 
 import java.util.*;
 

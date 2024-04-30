@@ -1,4 +1,4 @@
-package com.example.learnsocket;
+package dto;
 
 public class CenterCard {
     private char carte;
