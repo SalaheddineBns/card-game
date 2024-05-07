@@ -166,7 +166,7 @@ public class UserStatusWebSocket {
         // Iterate through the scores to find the winner and loser
         for (Map.Entry<String, Double> entry : scores.entrySet()) {
             String userPseudo = entry.getKey();
-
+            double score=entry.getValue();
             if (entry.getValue() > maxScore) {
                 maxScore = entry.getValue();
                 winner = entry.getKey();
@@ -181,51 +181,39 @@ public class UserStatusWebSocket {
                 processedUsers.add(userPseudo); // Mark the user as processed
 
                 Joueur j = joueurDao.findByPseudo(userPseudo);
-                Integer nombrePartiesJouées = j.getNombrePartiesJouées();
-                if (nombrePartiesJouées == null) {
-                    System.out.println(userPseudo + "in null");
-                    j.setNombrePartiesJouées(1); // If null, initialize with the first game
-                } else {
-                    j.setNombrePartiesJouées(nombrePartiesJouées + 1);
-                }
-                j.setRatioClicRéussi(12.8);
-                j.setScoreMoyen(12.6);
-                //j.setNombreVictoires(20);
-                j.setRatioClicRapide(82.9);
-                System.out.println(winner+"===>"+userPseudo);
-                if(userPseudo.equals(winner)){
-                    System.out.println("Im the winner "+userPseudo);
-                    Integer nombreVictoires = j.getNombreVictoires();
-                    System.out.println("mY victory"+ nombreVictoires);
-                    if (nombreVictoires == null) {
-                        j.setNombreVictoires(1);  // Assuming the first victory if previously null
-                    } else {
-                        j.setNombreVictoires(nombreVictoires + 1);
-                    }
-                }
+                updatePlayerStats(j,score,userPseudo.equals(winner));
+//                Integer nombrePartiesJouées = j.getNombrePartiesJouées();
+//                if (nombrePartiesJouées == null) {
+//                    System.out.println(userPseudo + "in null");
+//                    j.setNombrePartiesJouées(1); // If null, initialize with the first game
+//                } else {
+//                    j.setNombrePartiesJouées(nombrePartiesJouées + 1);
+//                }
+//                j.setRatioClicRéussi(12.8);
+//                Double scoreMoyenne=j.getScoreMoyen();
+//                if(scoreMoyenne==0 ){
+//                    System.out.println("Im here in scoreMoyene0"+userPseudo);
+//                        j.setScoreMoyen(score);
+//                }else{
+//                    j.setScoreMoyen(scoreMoyenne*(nombrePartiesJouées)+score/(nombrePartiesJouées+1));
+//                }
+//                //j.setScoreMoyen(12.6);
+//                //j.setNombreVictoires(20);
+//                j.setRatioClicRapide(82.9);
+//                System.out.println(winner+"===>"+userPseudo);
+//                if(userPseudo.equals(winner)){
+//                    System.out.println("Im the winner "+userPseudo);
+//                    Integer nombreVictoires = j.getNombreVictoires();
+//                    System.out.println("mY victory"+ nombreVictoires);
+//                    if (nombreVictoires == null) {
+//                        j.setNombreVictoires(1);  // Assuming the first victory if previously null
+//                    } else {
+//                        j.setNombreVictoires(nombreVictoires + 1);
+//                    }
+//                }
                 joueurDao.save(j);
 
-// handle case the winner
-//                Joueur j1 = joueurDao.findByPseudo(winner);
-//                Integer nombrePartiesJouées = j1.getNombrePartiesJouées();
-//                if (nombrePartiesJouées == null) {
-//                    j1.setNombrePartiesJouées(1); // If null, initialize with the first game
-//                } else {
-//                    j1.setNombrePartiesJouées(nombrePartiesJouées + 1);
-//                }
-//                Integer nombrePartiesJouées1 = j1.getNombrePartiesJouées();
-//                if (nombrePartiesJouées1 == null) {
-//                    System.out.println(userPseudo + "in null");
-//                    j1.setNombrePartiesJouées(1); // If null, initialize with the first game
-//                } else {
-//                    j1.setNombrePartiesJouées(nombrePartiesJouées + 1);
-//                }
-//                j1.setRatioClicRéussi(12.8);
-//                j1.setScoreMoyen(12.6);
-//
-//                j1.setRatioClicRapide(82.9);
-//                joueurDao.save(j1);
-                // Fin winner
+
 
                 if (j != null) {
                     Participation pa = new Participation();
@@ -245,6 +233,11 @@ public class UserStatusWebSocket {
         gameInfo.put("url", "WinnerPage.jsp");
         gameInfo.put("winner", winner);
         gameInfo.put("loser", loser);
+        System.out.println("Maaaaax Score : "+maxScore);
+        gameInfo.put("winnerScore", String.valueOf(maxScore));
+        gameInfo.put("loserScore", String.valueOf(minScore));
+
+
 
         String message = gson.toJson(gameInfo);
         System.out.println("Winner: " + winner + ", Loser: " + loser);
@@ -254,6 +247,17 @@ public class UserStatusWebSocket {
             if (session.isOpen()) {
                 session.getBasicRemote().sendText(message);
             }
+        }
+    }
+
+    private void updatePlayerStats(Joueur joueur, double score, boolean isWinner) {
+        Integer playedGames = joueur.getNombrePartiesJouées();
+        joueur.setNombrePartiesJouées(playedGames == null ? 1 : playedGames + 1);
+        joueur.setScoreMoyen((joueur.getScoreMoyen() * playedGames + score) / joueur.getNombrePartiesJouées());
+
+        if (isWinner) {
+            Integer victories = joueur.getNombreVictoires();
+            joueur.setNombreVictoires(victories == null ? 1 : victories + 1);
         }
     }
 

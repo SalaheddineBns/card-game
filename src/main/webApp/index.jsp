@@ -47,6 +47,13 @@
             background-image: url('./images/Bg.jpg');
         }
 
+        .alert-custom {
+            position: fixed; /* or absolute */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
     </style>
 
 
@@ -54,7 +61,41 @@
     <link href="cover.css" rel="stylesheet">
 </head>
 <body class="d-flex h-100 text-center text-white bg-dark">
+<%
+    String error = request.getParameter("error");
+    if (error != null && !error.isEmpty()) {
+%>
+<div class="alert alert-danger alert-custom" id="errorAlert">
+    <%= error %>
+</div>
+<script>
+    setTimeout(function() {
+        var errorAlert = document.getElementById("errorAlert");
+        if (errorAlert) {
+            errorAlert.style.display = "none"; // Hide the alert after 3 seconds
+        }
+    }, 3000); // 3000 milliseconds = 3 seconds
+</script>
+<% } %>
 
+<%
+    String successMessage = request.getParameter("successMessage");
+    if (successMessage != null && !successMessage.isEmpty()) {
+%>
+<div class="alert alert-success alert-custom" id="successAlert">
+    <%= successMessage %>
+</div>
+<script>
+    setTimeout(function() {
+        var successAlert = document.getElementById("successAlert");
+        if (successAlert) {
+            successAlert.style.display = "none"; // Hide the alert after 3 seconds
+        }
+    }, 3000); // 3000 milliseconds = 3 seconds
+</script>
+<%
+    }
+%>
 <div class="cover-container d-flex w-100 h-100 p-3 mx-auto flex-column">
     <header class="mb-auto">
         <div>

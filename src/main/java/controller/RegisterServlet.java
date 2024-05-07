@@ -49,9 +49,9 @@ public class RegisterServlet extends HttpServlet {
 
         try{
             joueurDao.save(joueur);
-            req.setAttribute("successMessage", "Account creation successful!");
+            req.setAttribute("successMessage", "Compte créer avec succées !");
             //req.getRequestDispatcher("register.jsp").forward(req, resp); // Ou toute autre vue JSP pertinente
-            resp.sendRedirect("home.jsp?successMessage=Account+creation+successful%21");
+            resp.sendRedirect("index.jsp?successMessage=Compte+successful");
 
             //resp.sendRedirect("login.jsp"); // Redirection vers la page de connexion après l'inscription
 

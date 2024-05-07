@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -104,9 +105,7 @@ protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws S
         }
 
     }
-    req.setAttribute("error", "Invalid username or password");
-    resp.sendRedirect("index.jsp"); // redirect to login page if authentication fails
-
+    resp.sendRedirect("index.jsp?error=" + URLEncoder.encode("Invalid username or password", "UTF-8"));
 
 
 

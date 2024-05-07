@@ -153,6 +153,8 @@
                     console.log(JSON.stringify(data.winner))
                     localStorage.setItem('winner', JSON.stringify(data.winner));
                     localStorage.setItem('loser', JSON.stringify(data.loser));
+                    localStorage.setItem('loserScore', JSON.stringify(data.loserScore));
+                    localStorage.setItem('winnerScore', JSON.stringify(data.winnerScore));
 
                     window.location.href = data.url;
                     break;
