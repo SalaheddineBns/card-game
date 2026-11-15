@@ -38,6 +38,9 @@ public class InvitationController {
     @Operation(operationId = "createInvitation", summary = "Invite online players",
             description = "Each invitee receives InvitationReceived on /user/queue/invitations. Expires after 60 s.")
     @ApiResponse(responseCode = "201", description = "Invitation created (no Location header, D24)")
+    @ApiResponse(responseCode = "409", description = "The inviter is not connected to the lobby (no STOMP connection, "
+            + "D26: \"Vous devez être connecté au lobby pour inviter des joueurs.\"), the inviter or an invitee is "
+            + "in a game, an invitee is offline, or someone is already in a pending invitation")
     @ErrorResponses({400, 401, 403, 409})
     public InvitationDto create(@Valid @RequestBody CreateInvitationRequest request, Principal principal) {
         return invitations.create(principal.getName(), request);

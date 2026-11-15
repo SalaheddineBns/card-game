@@ -185,6 +185,9 @@ Decisions D1-D21 are listed under "Decisions" below.
 | D23 | Maximum password length? | 72 characters (bcrypt limit), `400` above. |
 | D25 | Games left `IN_PROGRESS` by a server restart? | `V3` adds status `ABANDONED`. At startup those games become `ABANDONED` with `finished_at` set; no participations, no stats. Snapshot and result answer **410 Gone** (see "Contract note: V3 / abandoned games"). |
 | D24 | `Location` header on `201`? | Not for now: `POST /api/auth/register` and `POST /api/invitations` return `201` with a body and no `Location`. |
+| D26 | Invite without a lobby connection (G4/R1)? | `POST /api/invitations` answers `409` "Vous devez être connecté au lobby pour inviter des joueurs." when the inviter has no open STOMP connection. |
+| D27 | Missed `GameFinished` (R2)? | The game page reloads the snapshot 2 s after the last round ends (server clock) if no `GameFinished` arrived. |
+| D28 | Delete `legacy/`? | Yes, done in `014d070`. The original code stays at `1a8d27b`. Git history is not rewritten; the old MySQL password must be changed wherever it is still used. |
 
 No open questions remain (the restart point became D25).
 
@@ -682,6 +685,8 @@ Result: **16/16 rows `verified`**.
 
 ## Decommission readiness
 
+**Done (2026-11-16):** `legacy/` and the root `target/` were deleted in `014d070` with the user's agreement (D28). CLAUDE.md, the agents and the migration skill were updated in the same commit. The checklist below is kept for the record.
+
 `legacy/` is no longer needed as a behaviour reference: every row is verified and the legacy rules are pinned by the
 parity tests. Nothing in the build reads `legacy/` (only docs, agent files and test comments mention it).
 Before deleting it (not done; needs the user's agreement):
@@ -710,3 +715,5 @@ Before deleting it (not done; needs the user's agreement):
 | 2026-11-16 | backend → transformer, frontend | Review gaps fixed: G6/D25 (`V3__game_abandoned.sql`, `GameStatus.ABANDONED`, `Game.abandon`, `AbandonedGameCleanup` at `ApplicationReadyEvent`, `GameAbandonedException` → 410 "Partie interrompue" on `getGame`/`getGameResult`), G3 (`@DynamicUpdate` on `Player` + interleaved-transaction test), G1/G2 (auth validation, D23 lengths, French 401, upper-case login → stored spelling), G5 (finishGame retried once, then the game is ABANDONED → 410), G9 (game start outside the invitation lock; participants stay busy while it starts), G10 (`cardgame.claims.max-per-second`, default 10, extra claims dropped silently), G11 (`HttpSessionDestroyedEvent` closes that session's STOMP connections). G4 not done (waiting for the user). Deviation: `GameRecorder` also gained `abandonGame(gameId, at)` (needed by G5), added to `FakeGameRecorder` as plain storage like the two D25 methods. Parity test classes unchanged. 219 tests green. |
 | 2026-11-16 | backend → frontend | Fixes requested by the frontend: (1) no `produces` condition on the controllers any more (springdoc still documents `application/json` via `default-produces-media-type`), so 204s such as `logout` and `getCurrentGame` answer 204 to `Accept: application/problem+json` instead of 406; (2) every property of the `*Dto` schemas is `required` (nullable ones are `type: [T, "null"]`), and `CardDto`/`PlayerCardDto` `symbol` and `color` are enums; (3) `GameSnapshotDto` gains `roundStartedAt` and `serverTime`. The contract's 8-argument constructor is kept, and `equals` ignores `serverTime`, so `GameSessionParityTest` is unchanged. 222 tests green; `backend/target/openapi.json` regenerated. |
 | 2026-11-16 | transformer → main session | Final verification: backend 222 tests (parity 129), frontend 48, Playwright 2/2; 16/16 rows `verified`. Remaining: R1 (G4, user decision), R2 (frontend, low). Decommission readiness written; `legacy/` not deleted. |
+| 2026-11-16 | backend → frontend, transformer | G4 / D26 implemented: `POST /api/invitations` answers `409` (title "Connexion au lobby requise", detail "Vous devez être connecté au lobby pour inviter des joueurs.") when the inviter has no open STOMP connection (`PresenceService.find` empty). The check runs after the 400 checks on the invitee list and before the availability checks. Documented in the OpenAPI 409 description and `realtime-protocol.md`. Tests: `InvitationServiceTest`, `InvitationControllerTest`, and the REST-only case in `StompGameFlowIntegrationTest`; no existing test needed changes. 227 tests green. |
+| 2026-11-16 | main session | D26 (backend), D27 (frontend watchdog, `c380e81`) and D28 (legacy deleted, `014d070`) done. R1 and R2 closed. |

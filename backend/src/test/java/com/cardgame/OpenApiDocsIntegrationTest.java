@@ -50,6 +50,12 @@ class OpenApiDocsIntegrationTest {
                 .isEqualTo("#/components/schemas/Problem");
         assertThat((String) JsonPath.read(docs.getBody(), "$.components.schemas.Problem.properties.errors.items.$ref"))
                 .isEqualTo("#/components/schemas/FieldViolation");
+        // D26 is part of the invitation 409 description
+        assertThat((String) JsonPath.read(docs.getBody(), "$.paths['/api/invitations'].post.responses['409'].description"))
+                .contains("Vous devez être connecté au lobby pour inviter des joueurs.");
+        assertThat((String) JsonPath.read(docs.getBody(),
+                "$.paths['/api/invitations'].post.responses['409'].content['application/problem+json'].schema.$ref"))
+                .isEqualTo("#/components/schemas/Problem");
         // 204s document no body
         assertThat((Object) JsonPath.read(docs.getBody(), "$.paths['/api/auth/logout'].post.responses['204']"))
                 .asString().doesNotContain("content");

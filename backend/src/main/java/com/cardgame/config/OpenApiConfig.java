@@ -75,7 +75,11 @@ public class OpenApiConfig {
             }
             ApiResponses responses = operation.getResponses() == null ? new ApiResponses() : operation.getResponses();
             for (int status : errors.value()) {
-                String description = ERROR_DESCRIPTIONS.getOrDefault(status, HttpStatus.valueOf(status).getReasonPhrase());
+                ApiResponse declared = responses.get(String.valueOf(status));
+                String description = declared != null && declared.getDescription() != null
+                        && !declared.getDescription().isBlank()
+                        ? declared.getDescription()   // an endpoint-specific @ApiResponse wins
+                        : ERROR_DESCRIPTIONS.getOrDefault(status, HttpStatus.valueOf(status).getReasonPhrase());
                 responses.addApiResponse(String.valueOf(status), new ApiResponse()
                         .description(description)
                         .content(new Content().addMediaType(PROBLEM_JSON, new MediaType()

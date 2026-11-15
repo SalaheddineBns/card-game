@@ -19,6 +19,7 @@
 | Authorization | SUBSCRIBE allowed to `/user/queue/**` and `/topic/presence` for any logged-in player; `/topic/game/{id}` only for a player of that live game (D14); SEND only to `/app/**`. Anything else → STOMP `ERROR` frame (the subscription is not created). Treat an `ERROR` frame as fatal: disconnect and reconnect. |
 | Logout | `POST /api/auth/logout` closes every STOMP connection opened from that browser session (→ `PlayerOffline` when it was the player's last one, D15). |
 | Online | A player is online while ≥ 1 STOMP connection is open (D15): connect the socket in the lobby **and** on the game page. |
+| Inviting (D26) | `POST /api/invitations` requires the inviter to be online, i.e. to have ≥ 1 open STOMP connection; otherwise `409` with detail "Vous devez être connecté au lobby pour inviter des joueurs." (title "Connexion au lobby requise"). Connect the socket before enabling the invite form. |
 | Application prefix | `/app` (client SEND) |
 | Broker prefixes | `/topic` (broadcast), `/queue` (per user, via `/user/queue/...`) |
 | Payload | JSON, UTF-8. Every event has a `type` field (discriminator) and a `sentAt` ISO-8601 instant. |
@@ -172,3 +173,4 @@ Notes:
 | 2026-11-15 | backend | Confirmed the CSRF `CONNECT` header (`X-XSRF-TOKEN`, raw cookie value). Added the `PlayerStatusChanged` example. No STOMP destination implemented yet (auth only). |
 | 2026-11-16 | backend | Claim rate limit (G10, extra claims dropped silently); HTTP session expiry closes its STOMP connections (G11); D25 games answer 410. No payload changes. |
 | 2026-11-16 | backend | `GameSnapshot` gains `roundStartedAt` and `serverTime` (clock sync after a REST load). |
+| 2026-11-16 | backend | D26: inviting requires an open STOMP connection (409 otherwise). |

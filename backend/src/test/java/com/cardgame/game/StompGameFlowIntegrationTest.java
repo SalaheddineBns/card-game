@@ -134,6 +134,19 @@ class StompGameFlowIntegrationTest {
         assertThat(bob.session.isConnected()).isTrue();
     }
 
+    // D26: a REST-only client (no STOMP connection) cannot invite
+    @Test
+    void invitingWithoutALobbyConnectionIs409() {
+        Player erin = Player.loggedIn(port, "stomp_erin");
+
+        ResponseEntity<String> response = erin.http.post("/api/invitations", """
+                {"invitees":["stomp_bob"]}""");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat((String) JsonPath.read(response.getBody(), "$.detail"))
+                .isEqualTo("Vous devez être connecté au lobby pour inviter des joueurs.");
+    }
+
     @Test
     void connectWithoutTheCsrfHeaderIsRefused() {
         Player carol = Player.loggedIn(port, "stomp_carol");

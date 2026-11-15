@@ -97,6 +97,20 @@ class InvitationControllerTest {
     }
 
     @Test
+    void anInviterWithoutALobbyConnectionGetsA409Problem() throws Exception {
+        given(invitations.create(eq("alice"), any())).willThrow(new InviterNotConnectedException());
+
+        mvc.perform(post("/api/invitations").with(user("alice")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"invitees":["bob"]}"""))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.title").value("Connexion au lobby requise"))
+                .andExpect(jsonPath("$.detail").value("Vous devez être connecté au lobby pour inviter des joueurs."));
+    }
+
+    @Test
     void acceptAndDeclineActAsTheCaller() throws Exception {
         given(invitations.accept(1L, "bob")).willReturn(PENDING);
         given(invitations.decline(1L, "bob")).willThrow(new InvitationClosedException(1L, InvitationStatus.ACCEPTED));

@@ -60,6 +60,10 @@ public class InvitationService {
         validateNames(inviter, requested);
         GameSettings settings = toSettings(request.settings());
 
+        // D26: the inviter must be in the lobby (≥ 1 STOMP connection) to receive the invitation updates
+        if (presence.find(inviter).isEmpty()) {
+            throw new InviterNotConnectedException();
+        }
         if (presence.isInGame(inviter)) {
             throw new PlayerUnavailableException("Vous êtes déjà dans une partie.");
         }
