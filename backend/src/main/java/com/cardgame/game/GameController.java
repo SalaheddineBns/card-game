@@ -8,15 +8,17 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.security.Principal;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+// No `produces` condition: a 204 must not answer 406 to `Accept: application/problem+json` (what generated
+// clients send when the only documented body is the error). springdoc documents application/json through
+// springdoc.default-produces-media-type.
 @RestController
-@RequestMapping(path = "/api/games", produces = MediaType.APPLICATION_JSON_VALUE)
+@RequestMapping("/api/games")
 @Tag(name = "games", description = "Live game snapshot and result")
 public class GameController {
 

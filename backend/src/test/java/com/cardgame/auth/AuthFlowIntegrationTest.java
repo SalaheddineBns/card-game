@@ -79,7 +79,9 @@ class AuthFlowIntegrationTest {
         assertThat((String) JsonPath.read(me.getBody(), "$.gender")).isEqualTo("OTHER");
 
         // logout
-        assertThat(client.post("/api/auth/logout", null).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        // exactly what the generated Angular client sends for a 204 endpoint
+        assertThat(client.postAccepting("/api/auth/logout", "application/problem+json").getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
 
         // the session is gone
         assertThat(client.get("/api/auth/me").getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);

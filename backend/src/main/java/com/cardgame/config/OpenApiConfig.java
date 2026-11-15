@@ -18,6 +18,8 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -81,6 +83,25 @@ public class OpenApiConfig {
             }
             operation.setResponses(responses);
             return operation;
+        };
+    }
+
+    /**
+     * Response DTOs ({@code *Dto} schemas) are serialised with every property present (nulls included), so every
+     * property is marked required; properties declared nullable stay required but may be {@code null}. The generated
+     * TypeScript then has {@code field: T} or {@code field: T | null}, never {@code field?: T}.
+     */
+    @Bean
+    OpenApiCustomizer requiredDtoPropertiesCustomizer() {
+        return openApi -> {
+            if (openApi.getComponents() == null || openApi.getComponents().getSchemas() == null) {
+                return;
+            }
+            openApi.getComponents().getSchemas().forEach((name, schema) -> {
+                if (name.endsWith("Dto") && schema.getProperties() != null) {
+                    schema.setRequired(new ArrayList<>(schema.getProperties().keySet()));
+                }
+            });
         };
     }
 

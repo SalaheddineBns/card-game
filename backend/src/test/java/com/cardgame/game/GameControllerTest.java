@@ -50,6 +50,7 @@ class GameControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.gameId").value(7))
                 .andExpect(jsonPath("$.roundEndsAt").value("2026-01-01T10:00:10Z"))
+                .andExpect(jsonPath("$.roundStartedAt").value("2026-01-01T10:00:00Z"))
                 .andExpect(jsonPath("$.deal.centerCard.color").value("red"))
                 .andExpect(jsonPath("$.deal.playerCards[1].symbol").value("L"));
     }
@@ -61,6 +62,8 @@ class GameControllerTest {
         mvc.perform(get("/api/games/current").with(user("carol")))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
+        mvc.perform(get("/api/games/current").with(user("carol")).header("Accept", "application/problem+json"))
+                .andExpect(status().isNoContent());
     }
 
     @Test

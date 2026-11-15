@@ -114,6 +114,17 @@ class GameServiceTest {
         assertThatThrownBy(() -> games.result(gameId, "alice")).isInstanceOf(GameAbandonedException.class);
     }
 
+    @Test
+    void snapshotCarriesTheRoundStartAndTheServerClock() {
+        long gameId = startOneRoundGame();
+
+        var snapshot = games.snapshot(gameId, "alice");
+
+        assertThat(snapshot.roundStartedAt()).isEqualTo(T0);
+        assertThat(snapshot.roundEndsAt()).isEqualTo(T0.plusSeconds(10));
+        assertThat(snapshot.serverTime()).isEqualTo(T0);
+    }
+
     private long startOneRoundGame() {
         given(recorder.createGame(any(), any())).willReturn(42L);
         return games.startGame(List.of("alice", "bob"), new GameSettings(1, Duration.ofSeconds(10)));

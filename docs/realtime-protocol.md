@@ -126,7 +126,9 @@ Notes:
   Only the first correct claim on a given version scores (D8).
 - Game events go only to the game's players (D14); a user may have several tabs, all receive them (D15).
 - A reconnecting player gets the current state from `GET /api/games/{id}` (D17).
-- `GameSnapshot` (REST) = `{ gameId, players, settings: {totalRounds, roundSeconds}, phase, round, roundEndsAt, scores, deal }`.
+- `GameSnapshot` (REST) = `{ gameId, players, settings: {totalRounds, roundSeconds}, phase, round, roundStartedAt, roundEndsAt, scores, deal, serverTime }`.
+  `serverTime` is the server clock when the snapshot was built: compute `offset = serverTime - Date.now()` on receipt
+  and use it for the countdown to `roundEndsAt` (events carry `sentAt` for the same purpose).
 - `GameResult` (REST) = `{ gameId, finishedAt, draw, winner, loser, leaders, topScore, trailers, bottomScore, scores }` (same rule as `GameFinished`).
 - The game id is the `games` row id, created when the game **starts** (D22).
 - Order on the user queue at game start: `InvitationUpdated(ACCEPTED)` (invitations queue), then `GameStarted` (games queue).
@@ -169,3 +171,4 @@ Notes:
 | 2026-11-15 | backend | Implemented all destinations and events (status IMPLEMENTED). Added: handshake 401, ERROR-frame behaviour for CSRF/forbidden SUBSCRIBE, logout closes sockets, `Error` only to the sending tab, heartbeats 10 s. No shape changes. |
 | 2026-11-15 | backend | Confirmed the CSRF `CONNECT` header (`X-XSRF-TOKEN`, raw cookie value). Added the `PlayerStatusChanged` example. No STOMP destination implemented yet (auth only). |
 | 2026-11-16 | backend | Claim rate limit (G10, extra claims dropped silently); HTTP session expiry closes its STOMP connections (G11); D25 games answer 410. No payload changes. |
+| 2026-11-16 | backend | `GameSnapshot` gains `roundStartedAt` and `serverTime` (clock sync after a REST load). |

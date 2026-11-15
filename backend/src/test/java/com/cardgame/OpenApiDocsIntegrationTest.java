@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "server.servlet.session.cookie.secure=false")
 @Import(TestcontainersConfiguration.class)
+@SuppressWarnings("unchecked")
 class OpenApiDocsIntegrationTest {
 
     @LocalServerPort
@@ -49,6 +50,30 @@ class OpenApiDocsIntegrationTest {
                 .isEqualTo("#/components/schemas/Problem");
         assertThat((String) JsonPath.read(docs.getBody(), "$.components.schemas.Problem.properties.errors.items.$ref"))
                 .isEqualTo("#/components/schemas/FieldViolation");
+        // 204s document no body
+        assertThat((Object) JsonPath.read(docs.getBody(), "$.paths['/api/auth/logout'].post.responses['204']"))
+                .asString().doesNotContain("content");
+        // read DTOs: every property required (nullable ones stay nullable)
+        Map<String, Map<String, Object>> schemas = JsonPath.read(docs.getBody(), "$.components.schemas");
+        for (String dto : java.util.List.of("GameSnapshotDto", "GameResultDto", "InvitationDto", "OnlinePlayerDto",
+                "DealDto", "CardDto", "PlayerCardDto", "PlayerScoreDto", "PlayerDto", "PlayerProfileDto",
+                "GameSettingsDto")) {
+            Map<String, Object> schema = schemas.get(dto);
+            assertThat(schema).as(dto).isNotNull();
+            assertThat((java.util.List<String>) schema.get("required")).as(dto)
+                    .containsExactlyInAnyOrderElementsOf(((Map<String, Object>) schema.get("properties")).keySet());
+        }
+        assertThat((java.util.List<String>) JsonPath.read(docs.getBody(), "$.components.schemas.GameSnapshotDto.required"))
+                .contains("roundStartedAt", "roundEndsAt", "serverTime");
+        assertThat((java.util.List<String>) JsonPath.read(docs.getBody(), "$.components.schemas.InvitationDto.properties.gameId.type"))
+                .contains("null");
+        // card values are enums (11 symbols without G, lower-case colors)
+        assertThat((java.util.List<String>) JsonPath.read(docs.getBody(), "$.components.schemas.CardDto.properties.symbol.enum"))
+                .containsExactly("A", "B", "C", "D", "E", "F", "H", "I", "J", "K", "L");
+        assertThat((java.util.List<String>) JsonPath.read(docs.getBody(), "$.components.schemas.CardDto.properties.color.enum"))
+                .containsExactly("red", "blue", "green");
+        assertThat((java.util.List<String>) JsonPath.read(docs.getBody(), "$.components.schemas.PlayerCardDto.properties.color.enum"))
+                .containsExactly("red", "blue", "green");
         assertThat((String) JsonPath.read(docs.getBody(), "$.servers[0].url")).isEqualTo("/");
 
         Files.writeString(Path.of("target", "openapi.json"), docs.getBody());

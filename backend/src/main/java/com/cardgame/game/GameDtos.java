@@ -8,6 +8,7 @@ import com.cardgame.game.dto.PlayerCardDto;
 import com.cardgame.game.dto.PlayerScoreDto;
 import com.cardgame.game.engine.Card;
 import com.cardgame.game.engine.GameState;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -29,9 +30,10 @@ final class GameDtos {
         return new DealDto(state.dealVersion(), cards, new CardDto(symbol(center), center.color().wireValue()));
     }
 
-    static GameSnapshotDto snapshot(long gameId, GameState state) {
+    static GameSnapshotDto snapshot(long gameId, GameState state, Instant serverTime) {
         return new GameSnapshotDto(gameId, state.players(), GameSettingsDto.from(state.settings()), state.phase(),
-                state.currentRound(), state.roundEndsAt(), scores(state.scores()), deal(state));
+                state.currentRound(), state.roundStartedAt(), state.roundEndsAt(), scores(state.scores()), deal(state),
+                serverTime);
     }
 
     private static String symbol(Card card) {

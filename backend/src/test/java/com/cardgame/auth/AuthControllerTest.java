@@ -311,6 +311,21 @@ class AuthControllerTest {
         verify(realtimeSessions).closeAll(session.getId());
     }
 
+    // The generated client sends this Accept when the only documented body is the error: 204 must not be a 406.
+    @Test
+    void logoutIgnoresAnAcceptHeaderAskingForProblemJson() throws Exception {
+        mvc.perform(post("/api/auth/logout").with(csrf()).with(user("alice"))
+                        .header("Accept", "application/problem+json"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void logoutWithoutCsrfStillAnswersAProblemWhenProblemJsonIsAccepted() throws Exception {
+        mvc.perform(post("/api/auth/logout").with(user("alice")).header("Accept", "application/problem+json"))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+    }
+
     @Test
     void logoutWithoutCsrfTokenIsRejected() throws Exception {
         mvc.perform(post("/api/auth/logout").with(user("alice")))

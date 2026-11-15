@@ -41,6 +41,13 @@ public final class SpaHttpClient {
         return send(path, json, true);
     }
 
+    /** POST with CSRF and an explicit Accept header, e.g. what a generated client sends. */
+    public ResponseEntity<String> postAccepting(String path, String accept) {
+        RestClient.RequestBodySpec spec = rest.method(HttpMethod.POST).uri(path).header("Accept", accept);
+        cookie("XSRF-TOKEN").ifPresent(token -> spec.header("X-XSRF-TOKEN", token));
+        return spec.retrieve().toEntity(String.class);
+    }
+
     public ResponseEntity<String> postWithoutCsrfHeader(String path, String json) {
         return send(path, json, false);
     }

@@ -115,14 +115,14 @@ public class GameService implements GameLauncher {
             throw new NotAGamePlayerException(gameId);
         }
         synchronized (session) {
-            return GameDtos.snapshot(gameId, session.state());
+            return GameDtos.snapshot(gameId, session.state(), clock.instant());
         }
     }
 
     public Optional<GameSnapshotDto> currentGameOf(String username) {
         return sessions.activeGameOf(username).flatMap(id -> sessions.find(id)).map(session -> {
             synchronized (session) {
-                return GameDtos.snapshot(session.gameId(), session.state());
+                return GameDtos.snapshot(session.gameId(), session.state(), clock.instant());
             }
         });
     }
