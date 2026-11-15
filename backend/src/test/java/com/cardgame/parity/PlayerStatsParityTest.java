@@ -54,4 +54,19 @@ class PlayerStatsParityTest {
         assertThat(after.victories()).isEqualTo(expectedVictories);
         assertThat(after.averageScore()).isCloseTo(expectedAverage, within(1e-9));
     }
+
+    // DECISION Q6: legacy saved stats only for a player's first game since server start (static
+    // processedUsers, UserStatusWebSocket line 40 / 180-181). Now stats are updated after every game.
+    @Test
+    void statsAccumulateOverConsecutiveGames() {
+        PlayerStats stats = PlayerStats.initial()
+                .afterGame(4, true)
+                .afterGame(2, false)
+                .afterGame(0, false)
+                .afterGame(6, true);
+
+        assertThat(stats.gamesPlayed()).isEqualTo(4);
+        assertThat(stats.victories()).isEqualTo(2);
+        assertThat(stats.averageScore()).isCloseTo(3.0, within(1e-9));
+    }
 }

@@ -10,6 +10,7 @@ import com.cardgame.game.engine.GameState;
 import com.cardgame.game.engine.PlayerOutcome;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.SequencedMap;
@@ -19,7 +20,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 /**
- * Winner / loser determination at the end of a game.
+ * Winner / loser / draw determination at the end of a game.
  *
  * <p>legacy: legacy/src/main/java/webSocket/UserStatusWebSocket.java, handleResult lines 136-251
  * <ul>
@@ -28,92 +29,88 @@ import org.junit.jupiter.params.provider.CsvSource;
  *   <li>victory credited with the <em>running</em> winner inside the same loop: line 184</li>
  *   <li>broadcast {winner, loser, winnerScore, loserScore}: lines 231-250</li>
  * </ul>
- * Legacy iterates a Gson-built map whose order is the JSON key order sent by one browser. The new API takes
- * a {@link SequencedMap} in player order, so "first encountered" is deterministic.
+ * Decisions (docs/migration-plan.md): Q3 all-zero is a draw, Q4 tied leaders share a draw and a player is
+ * never both winner and loser, Q5 only the final winner gets a victory.
+ *
+ * <p>Rule: leaders = players with the top score, trailers = players with the bottom score (empty when
+ * everybody has the same score). Winner = the single leader, else none (draw). Loser = the single trailer,
+ * else none. Lists are in player order.
  */
 @Disabled("pending port: scoring/winner (plan row 13) - implement GameEngine#determineResult / GameEngine#result")
 class GameResultParityTest {
 
     @ParameterizedTest(name = "{0} -> winner {1} ({2}), loser {3} ({4})")
     @CsvSource({
-            // scores in player order, winner, winnerScore, loser, loserScore
-            "'alice=3;bob=1',          alice, 3, bob,   1",
-            "'alice=1;bob=3',          bob,   3, alice, 1",
-            "'alice=0;bob=2;carol=5',  carol, 5, alice, 0",
-            "'alice=7;bob=2;carol=4',  alice, 7, bob,   2",
-            "'alice=2;bob=9;carol=4;dave=1', bob, 9, dave, 1",
-            // single player: winner and loser are the same person (legacy behaviour)
-            "'solo=4',                 solo,  4, solo,  4",
+            // scores in player order, winner, topScore, loser, bottomScore  (same as legacy)
+            "'alice=3;bob=1',                 alice, 3, bob,   1",
+            "'alice=1;bob=3',                 bob,   3, alice, 1",
+            "'alice=0;bob=2;carol=5',         carol, 5, alice, 0",
+            "'alice=7;bob=2;carol=4',         alice, 7, bob,   2",
+            "'alice=2;bob=9;carol=4;dave=1',  bob,   9, dave,  1",
     })
-    void highestScoreWinsAndLowestScoreLoses(String scores, String winner, int winnerScore,
-                                             String loser, int loserScore) {
+    void highestScoreWinsAndLowestScoreLoses(String scores, String winner, int topScore,
+                                             String loser, int bottomScore) {
         GameResult result = GameEngine.determineResult(scores(scores));
 
+        assertThat(result.isDraw()).isFalse();
         assertThat(result.winner()).isEqualTo(winner);
-        assertThat(result.winnerScore()).isEqualTo(winnerScore);
+        assertThat(result.leaders()).containsExactly(winner);
+        assertThat(result.topScore()).isEqualTo(topScore);
         assertThat(result.loser()).isEqualTo(loser);
-        assertThat(result.loserScore()).isEqualTo(loserScore);
+        assertThat(result.trailers()).containsExactly(loser);
+        assertThat(result.bottomScore()).isEqualTo(bottomScore);
     }
 
+    // DECISION Q5: legacy credited a victory to every player who was the running leader when visited
+    // (e.g. 'bob=3;alice=5' credited bob AND alice). Now only the final winner is credited.
     @ParameterizedTest(name = "{0} -> victory only for {1}")
     @CsvSource({
-            // Cases where the final winner is also the first player encountered with the max score,
-            // so legacy and a "fixed" implementation agree.
             "'alice=5;bob=3',         alice",
             "'alice=5;bob=3;carol=1', alice",
+            "'bob=3;alice=5',         alice",
+            "'alice=0;bob=2;carol=5', carol",
+            "'alice=1;bob=2;carol=3;dave=4', dave",
     })
-    void creditsAVictoryToTheWinnerOnly(String scores, String winner) {
+    void creditsAVictoryToTheFinalWinnerOnly(String scores, String winner) {
         GameResult result = GameEngine.determineResult(scores(scores));
 
         assertThat(result.outcomes()).extracting(PlayerOutcome::player)
                 .containsExactlyElementsOf(scores(scores).sequencedKeySet());
+        assertThat(result.outcomes()).extracting(PlayerOutcome::score)
+                .containsExactlyElementsOf(scores(scores).sequencedValues());
         assertThat(result.outcomes()).filteredOn(PlayerOutcome::victory)
                 .extracting(PlayerOutcome::player).containsExactly(winner);
     }
 
-    // LEGACY-BUG? Ties: legacy uses strict '>' / '<', so the first player encountered wins / loses.
-    // Encounter order is the JSON key order of ONE browser's local score map (effectively arbitrary).
-    // With player order as the new encounter order this test pins "first in player order wins the tie".
-    // When ALL scores are equal (and > 0), the same first player is both winner AND loser.
-    @Disabled("pending user decision: Q4 (tie-break rule)")
-    @ParameterizedTest
+    // DECISION Q3: legacy produced winner = null and showed "null(Score: 4.9E-324 )" when all scores were 0.
+    // DECISION Q4: legacy broke ties by map iteration order and, when all scores were equal, made the same
+    // player winner AND loser. Now tied leaders share a draw (no winner, no victory); tied trailers mean no
+    // loser; when everybody is equal there is no trailer at all.
+    @ParameterizedTest(name = "{0} -> leaders [{1}] ({2}), trailers [{3}] ({4}), winner {5}, loser {6}")
     @CsvSource({
-            "'alice=4;bob=4',         alice, alice",
-            "'bob=4;alice=4',         bob,   bob",
-            "'alice=1;bob=4;carol=4', bob,   alice",
-            "'alice=1;bob=4;carol=1', bob,   alice",
+            // scores, leaders, topScore, trailers, bottomScore, winner (empty = none), loser (empty = none)
+            "'alice=0;bob=0',                 alice|bob,       0, ,           0, ,      ",
+            "'alice=0;bob=0;carol=0',         alice|bob|carol, 0, ,           0, ,      ",
+            "'alice=4;bob=4',                 alice|bob,       4, ,           4, ,      ",
+            "'bob=4;alice=4',                 bob|alice,       4, ,           4, ,      ",
+            "'alice=1;bob=4;carol=4',         bob|carol,       4, alice,      1, ,      alice",
+            "'alice=5;bob=1;carol=1',         alice,           5, bob|carol,  1, alice, ",
+            "'alice=4;bob=4;carol=1;dave=1',  alice|bob,       4, carol|dave, 1, ,      ",
     })
-    void tieGoesToTheFirstPlayerInOrder(String scores, String winner, String loser) {
+    void tiesAndAllZeroScoresAreDraws(String scores, String leaders, int topScore, String trailers,
+                                      int bottomScore, String winner, String loser) {
         GameResult result = GameEngine.determineResult(scores(scores));
 
+        assertThat(result.leaders()).containsExactlyElementsOf(names(leaders));
+        assertThat(result.topScore()).isEqualTo(topScore);
+        assertThat(result.trailers()).containsExactlyElementsOf(names(trailers));
+        assertThat(result.bottomScore()).isEqualTo(bottomScore);
         assertThat(result.winner()).isEqualTo(winner);
         assertThat(result.loser()).isEqualTo(loser);
-    }
-
-    // LEGACY-BUG? maxScore starts at Double.MIN_VALUE (the smallest POSITIVE double, 4.9E-324), not
-    // -infinity. If every score is 0, nobody is "greater", so winner == null, nobody gets a victory, and the
-    // client shows "null(Score: 4.9E-324 )" on the winner page.
-    @Disabled("pending user decision: Q3 (all-zero scores)")
-    @Test
-    void allZeroScoresProduceNoWinnerLikeLegacy() {
-        GameResult result = GameEngine.determineResult(scores("alice=0;bob=0"));
-
-        assertThat(result.winner()).isNull();
-        assertThat(result.loser()).isEqualTo("alice");
-        assertThat(result.outcomes()).noneMatch(PlayerOutcome::victory);
-    }
-
-    // LEGACY-BUG? The victory is credited with the RUNNING winner while iterating (line 184), so every
-    // player who is the max-so-far when visited gets a victory. Here bob (3) is visited first and is credited
-    // a victory, then alice (5) is credited too: two victories for one game.
-    @Disabled("pending user decision: Q5 (victory credited to running winner)")
-    @Test
-    void earlierRunningLeaderIsAlsoCreditedAVictoryLikeLegacy() {
-        GameResult result = GameEngine.determineResult(scores("bob=3;alice=5"));
-
-        assertThat(result.winner()).isEqualTo("alice");
+        assertThat(result.isDraw()).isEqualTo(winner == null);
         assertThat(result.outcomes()).filteredOn(PlayerOutcome::victory)
-                .extracting(PlayerOutcome::player).containsExactly("bob", "alice");
+                .extracting(PlayerOutcome::player)
+                .containsExactlyElementsOf(winner == null ? List.of() : List.of(winner));
     }
 
     @Test
@@ -123,8 +120,8 @@ class GameResultParityTest {
                 .then(11, 1, 3, 1, 11, 2, 3, 1, 2, 0, 2, 1);
         MutableClock clock = new MutableClock(Instant.parse("2026-01-01T10:00:00Z"));
         GameEngine engine = new GameEngine(random, clock);
-        GameState state = engine.start(List.of("alice", "bob"), new GameSettings(1, Duration.ofSeconds(10), 0));
-        state = engine.claim(state, "alice", Claim.SAME_COLOR).state();
+        GameState state = engine.start(List.of("alice", "bob"), new GameSettings(1, Duration.ofSeconds(10)));
+        state = engine.claim(state, "alice", Claim.SAME_COLOR, state.dealVersion()).state();
         clock.advance(Duration.ofSeconds(10));
         state = engine.roundTimerExpired(state);
 
@@ -133,9 +130,25 @@ class GameResultParityTest {
 
         // then
         assertThat(result.winner()).isEqualTo("alice");
-        assertThat(result.winnerScore()).isEqualTo(1);
+        assertThat(result.topScore()).isEqualTo(1);
         assertThat(result.loser()).isEqualTo("bob");
-        assertThat(result.loserScore()).isZero();
+        assertThat(result.bottomScore()).isZero();
+    }
+
+    @Test
+    void finishedGameWithoutAnyPointIsADraw() {
+        // DECISION Q3
+        MutableClock clock = new MutableClock(Instant.parse("2026-01-01T10:00:00Z"));
+        GameEngine engine = new GameEngine(new java.util.Random(3), clock);
+        GameState state = engine.start(List.of("alice", "bob"), new GameSettings(1, Duration.ofSeconds(10)));
+        state = engine.roundTimerExpired(state);
+
+        GameResult result = engine.result(state);
+
+        assertThat(result.isDraw()).isTrue();
+        assertThat(result.winner()).isNull();
+        assertThat(result.loser()).isNull();
+        assertThat(result.outcomes()).noneMatch(PlayerOutcome::victory);
     }
 
     /** Parses "alice=3;bob=1" into an insertion-ordered map. */
@@ -146,5 +159,10 @@ class GameResultParityTest {
             map.put(kv[0].trim(), Integer.parseInt(kv[1].trim()));
         }
         return map;
+    }
+
+    /** Parses "alice|bob" (null or blank = empty). */
+    private static List<String> names(String spec) {
+        return spec == null || spec.isBlank() ? List.of() : Arrays.stream(spec.split("\\|")).map(String::trim).toList();
     }
 }

@@ -23,24 +23,24 @@ lowest score loses, the game and participations are saved and player stats are u
 
 ## Feature table
 
-| # | Feature | Legacy sources | Backend (REST / STOMP) | Frontend (route / components) | Parity tests | Status | Notes / open questions |
-|---|---------|----------------|------------------------|-------------------------------|--------------|--------|------------------------|
-| 1 | Register | `controller/RegisterServlet.java`, `webApp/index.jsp` (signup modal L49-116, `validateForm` L157-171) | `POST /api/auth/register` `{username, password, age, gender}` → `201` `PlayerDto`; `409` ProblemDetail if username taken; `400` validation | `/auth/register` · `RegisterPage` (password + confirm, terms checkbox are client-side only) | — (controller tests) | specified | Fix: bcrypt (B18), unique username (B19). Q11 gender, Q18 username/password rules. Legacy redirects to `index.jsp?successMessage=Compte+successful` → navigate to `/auth/login` with a success toast. Confirm-password check moves to the client + server-side `@AssertTrue`? → recommended client only. |
-| 2 | Login | `controller/LoginServlet.java` L66-112, `index.jsp` login modal L118-142 | `POST /api/auth/login` `{username, password}` → `200` `PlayerDto` (session cookie); `401` ProblemDetail. `GET /api/auth/me` → `200` `PlayerDto` / `401`. CSRF token via cookie `XSRF-TOKEN` | `/auth/login` · `LoginPage`; `authGuard` on all other routes | — | specified | Legacy on failure: `index.jsp?error=Invalid username or password` → show the same message. Legacy stores 10 session attributes (L88-99); new code stores only the principal. Login also broadcast `login` presence (L100): new presence is driven by STOMP connect (row 6). |
-| 3 | Logout | `controller/LogoutServlet.java`, `home.jsp` L56-58 | `POST /api/auth/logout` → `204`, invalidates session, closes the user's STOMP sessions (→ `PlayerOffline`) | navbar "Logout" button → `/` | — | specified | Legacy redirects to `index.jsp`. |
-| 4 | Landing page | `webApp/index.jsp` (`main` L144-150), `cover.css`, `images/Bg.jpg` | — | `/` · `LandingPage` ("Speedest Game", "Jouer" → login) | — | specified | Pure UI. Q21 language of UI texts. |
-| 5 | Profile view | `controller/ProfileServlet.java#doGet` L53-70, `webApp/profile.jsp` (jQuery AJAX L9-35) | `GET /api/players/me` → `PlayerProfileDto {username, age, gender, gamesPlayed, victories, averageScore}` | `/profile` · `ProfilePage` | — | specified | Fix (security): legacy returns any profile by `?username=` **including the password** (B20). Click ratios: Q12. |
-| 6 | Profile edit | `ProfileServlet#doPost` L93-122, `profile.jsp` form L132-243 | `PUT /api/players/me` `{age, gender}` → `200` `PlayerProfileDto` | same page, "Update"/"Cancel"; success toast "Modification réussie!" | — | specified | Fix: legacy merges the stale session copy and overwrites stats (B21). "Changer Mot de Passe" button does nothing in legacy → out of scope (Q19). Username is read-only. |
-| 7 | Online presence (lobby) | `LoginServlet.sessions` L27/L97-98, `UserStatusWebSocket#broadcast` L435-449, `#onOpen/#onClose` L42-57, `home.jsp` sidebar L17-34 + WS handler L121-153 | `GET /api/players/online` → `[{username, status}]`; STOMP `/topic/presence` (`PlayerOnline`, `PlayerOffline`, later `PlayerInGame`?) | `/lobby` · `LobbyPage`, `OnlinePlayersPanel` | — (`PresenceServiceTest`) | specified | Legacy list = users with a live HttpSession (never expires), events from login/logout servlets; WS close is not reported (B17). New: online ⇔ ≥1 authenticated STOMP session. Current user is excluded from the list (home.jsp L27). Q15 multi-tab, Q16 "in game" status. |
-| 8 | Invitations: create (game setup) | `home.jsp` game form L65-86 + `sendInvitation` L178-201, `UserStatusWebSocket#handleInvite` L278-304 | `POST /api/invitations` `{invitees: [username], settings: {totalRounds, roundSeconds}}` → `201` `InvitationDto {id, inviter, invitees[], settings, status}`; each invitee gets `InvitationReceived` on `/user/queue/invitations` | `/lobby` · `GameSetupForm` (rounds, timer, pick online players) | `InvitationFlowParityTest` (to write with row 8 service contract) | specified | Legacy invites **every connected socket except the sender's**, ignoring `invitees` (B11). Q7 who is invited, Q9 `combinaison`, Q10 limits, Q2 timer unit. |
-| 9 | Invitations: respond | `home.jsp` `confirm()` L154-163, `UserStatusWebSocket#handleResponse` L306-321 | `POST /api/invitations/{id}/accept` / `/decline` → `200` `InvitationDto`; inviter + invitees get `InvitationUpdated` on `/user/queue/invitations` | `InvitationDialog` (PrimeNG dialog, Accept / Decline) | same | specified | Legacy: game starts when accepted count == invited count; **decline is ignored and the game never starts** (B12). Q7. |
-| 10 | Game start + card deal | `UserStatusWebSocket#beginGame` L379-432, `#generateGameCards` L452-466, `home.jsp` redirect handler L164-174 | When the last invitee accepts: `GameService` creates the game (id), state = `GameEngine.start(...)`; each player gets `GameStarted {gameId}` on `/user/queue/games`; `GET /api/games/{id}` → `GameSnapshotDto` | navigate to `/games/:id` · `GamePage`, `GameTable`, `PlayerCardList`, `CenterCard` | `CardGenerationParityTest`, `RoundTimerParityTest#startsAtRoundOne...` | specified | Legacy passes the start state through `localStorage` (`playersScore`, `playerCards`, `nbrTours`, `centreCard`, `timer`). Player order = invitees in invitation order, inviter last? → recommended inviter first (legacy order is HashSet order, i.e. arbitrary). Q1 missing `G`. |
-| 11 | Rounds & timer | `game.jsp` `initializeGame` L104-118, `startTimer/resetTimer` L189-212, `finTour` handler L143-150; `UserStatusWebSocket` case `finTour` L77-81, `#handleFinTour` L264-276 | Server-driven: `TaskScheduler` per game fires at `roundEndsAt` → `GameEngine.roundTimerExpired` → `/topic/game/{id}` `RoundStarted {round, totalRounds, endsAt, deal, scores}` or `GameFinished` | `RoundTimer` (countdown computed from `endsAt`), notification "Time's up! Moving to the next round." | `RoundTimerParityTest` | specified | Legacy: one timer **per browser**, each browser sends `finTour`, so the server broadcasts N times and deals N times (B9). Behaviour kept: N rounds of T s, new cards each round, scores carry over. Q2 unit, Q10 limits, Q17 disconnects. |
-| 12 | Claims & scoring | `game.jsp` `handleSameColorButton` L255-273, `handleSameFormatButton` L274-293, `handleboth` L295-315; `UserStatusWebSocket#handleUpdateScore` L323-327, `#broadcastUpdatedScores` L330-342 | STOMP SEND `/app/game/{id}/claim` `{claim: SAME_COLOR\|SAME_SYMBOL\|BOTH, dealVersion}`; server judges with `GameEngine.claim`; if correct → `/topic/game/{id}` `ScoresUpdated {scores, deal, dealVersion, scoredBy}`; wrong → `/user/queue/errors`? (Q8) | `ClaimButtons` ("The Same Color", "The Same Format", "The Two") | `ClaimScoringParityTest` | specified | Legacy is **client-authoritative**: the browser checks the claim and sends its whole local score map, the server rebroadcasts it (lost updates, cheating, B10). New: server-authoritative, same rule (+1, no penalty, new deal after each correct claim). Q8. |
-| 13 | Game end: winner, persistence, stats | `game.jsp` L200-203 (`finPartie`); `UserStatusWebSocket#handleResult` L136-251, `#updatePlayerStats` L253-262; `dto/PartieManager.java`; `dao/PartieDao`, `ParticipationDAO`, `JoueurDao` | On `GameFinished`: one transaction saves `game` + one `participation` per player + updated `player` stats; `/topic/game/{id}` `GameFinished {winner, winnerScore, loser, loserScore, scores}`; `GET /api/games/{id}/result` → `GameResultDto` | — | `GameResultParityTest`, `PlayerStatsParityTest` | specified | Many legacy bugs here: B3, B4, B5, B6, B7, B8, B24. Q3, Q4, Q5, Q6. Participation score = rounded final score. `Partie.valeurTimer` = round seconds, `nombreTours` = total rounds, `modeJeu` = `"Normal"`, `nombreCombinaisons` never set. |
-| 14 | Result (winner) page | `webApp/WinnerPage.jsp` | `GET /api/games/{id}/result` | `/games/:id/result` · `GameResultPage` ("Gagnant", "Perdant", "Rejouer" → `/lobby`) | — | specified | Legacy reads `localStorage` and waits 2 s before showing (L94). Shows scores as `3.0` (B29). Q3/Q4 decide what a draw looks like. Q20 full ranking. |
-| 15 | Schema + seed | `model/*.java`, `META-INF/persistence.xml`, `dto/MockData.java` | Flyway `V1__init.sql` (`player`, `game`, `participation`), dev-only seed migration | — | — (`@DataJpaTest` only for custom queries) | specified | `MockData` holds **no players**, only fake invitations (`sender` → `user1`, `user2`). Q12 unused tables/columns, Q13 seed content. Credentials in `persistence.xml` are committed (B27). |
-| 16 | Unused legacy code | `controller/GameServlet.java` (`/game` endpoint), `UserStatusWebSocket#generateCards` L346-376, `dto/CardTables`, `webSocket/MainApp`, `model/Carte`, `model/Tour`, `enums/Forme`, `enums/Couleur`, `dao/CarteDao`, `dao/TourDao`, `test/UserStatusWebSocketTest` (all commented out) | not ported | — | — | specified | Recommended: do not port (Q12). `TourDao` would NPE (no EMF). |
+| # | Feature | Legacy sources | Backend (REST / STOMP) | Frontend (route / components) | Parity tests | Status | Notes / decisions |
+|---|---------|----------------|------------------------|-------------------------------|--------------|--------|-------------------|
+| 1 | Register | `controller/RegisterServlet.java`, `webApp/index.jsp` (signup modal L49-116, `validateForm` L157-171) | `POST /api/auth/register` `{username, password, age, gender?}` → `201` `PlayerDto`; `409` ProblemDetail if username taken (case-insensitive); `400` validation | `/auth/register` · `RegisterPage` (password + confirm, terms checkbox: client-side only) | — (controller tests) | specified | Fix: bcrypt (B18), unique username (B19). **D18**: username 3-20 chars `[A-Za-z0-9_-]`, unique ignoring case; password ≥ 8 chars; legacy accounts not migrated. **D11**: `gender` optional enum `MALE`/`FEMALE`/`OTHER` (select). Age ≥ 1 as legacy. Confirm-password check is client-side only. On success navigate to `/auth/login` with a success toast. **D21**: French UI texts. |
+| 2 | Login | `controller/LoginServlet.java` L66-112, `index.jsp` login modal L118-142 | `POST /api/auth/login` `{username, password}` → `200` `PlayerDto` (session cookie); `401` ProblemDetail. `GET /api/auth/me` → `200` `PlayerDto` / `401`. CSRF token via cookie `XSRF-TOKEN` | `/auth/login` · `LoginPage`; `authGuard` on all other routes | — | specified | Failure message as legacy ("Invalid username or password", in French per D21). New code stores only the principal. Presence is driven by STOMP connect (row 7), not by login. |
+| 3 | Logout | `controller/LogoutServlet.java`, `home.jsp` L56-58 | `POST /api/auth/logout` → `204`, invalidates session, closes the user's STOMP sessions (→ `PlayerOffline` when the last one closes, D15) | navbar "Logout" button → `/` | — | specified | |
+| 4 | Landing page | `webApp/index.jsp` (`main` L144-150), `cover.css`, `images/Bg.jpg` | — | `/` · `LandingPage` ("Speedest Game", "Jouer" → login) | — | specified | **D21**: French UI. |
+| 5 | Profile view | `controller/ProfileServlet.java#doGet` L53-70, `webApp/profile.jsp` (jQuery AJAX L9-35) | `GET /api/players/me` → `PlayerProfileDto {username, age, gender, gamesPlayed, victories, averageScore}` | `/profile` · `ProfilePage` | — | specified | Fix: no more `?username=` and never the password (B20). **D12**: click ratios not shown and not stored. |
+| 6 | Profile edit | `ProfileServlet#doPost` L93-122, `profile.jsp` form L132-243 | `PUT /api/players/me` `{age, gender?}` → `200` `PlayerProfileDto` | same page, "Update"/"Cancel"; success toast "Modification réussie!" | — | specified | Fix: no stale overwrite of stats (B21). **D11** gender select. **D19**: "Changer Mot de Passe" button hidden (out of scope). Username read-only. |
+| 7 | Online presence (lobby) | `LoginServlet.sessions` L27/L97-98, `UserStatusWebSocket#broadcast` L435-449, `#onOpen/#onClose` L42-57, `home.jsp` sidebar L17-34 + WS handler L121-153 | `GET /api/players/online` → `[{username, status: ONLINE \| IN_GAME}]`; STOMP `/topic/presence` (`PlayerOnline`, `PlayerOffline`, `PlayerStatusChanged`) | `/lobby` · `LobbyPage`, `OnlinePlayersPanel` | — (`PresenceServiceTest`) | specified | Online ⇔ ≥1 authenticated STOMP session (fixes B17). Current user excluded from the list (as legacy). **D15**: several tabs allowed, offline when the last tab disconnects. **D16**: players in a running game are shown `IN_GAME`. |
+| 8 | Invitations: create (game setup) | `home.jsp` game form L65-86 + `sendInvitation` L178-201, `UserStatusWebSocket#handleInvite` L278-304 | `POST /api/invitations` `{invitees: [username], settings: {totalRounds, roundSeconds}}` → `201` `InvitationDto {id, inviter, invitees[], accepted[], settings, status, expiresAt}`; each invitee gets `InvitationReceived` on `/user/queue/invitations`. `400` invalid settings/invitees; `409` invitee offline, in a game (D16) or already in a pending invitation | `/lobby` · `GameSetupForm` (rounds, seconds per round, multi-select of online players) | `InvitationFlowParityTest` (to write once the backend proposes the invitation service API) | specified | **D7**: only the selected players are invited (fixes B11), 1+ invitees, not self, no duplicates. **D9**: no "number of combinations". **D10**: rounds 1-20 (default 3), round 5-120 s (default 10). **D2**: label "seconds per round" (fixes B2). |
+| 9 | Invitations: respond, cancel, expire | `home.jsp` `confirm()` L154-163, `UserStatusWebSocket#handleResponse` L306-321 | `POST /api/invitations/{id}/accept` / `/decline` → `200` `InvitationDto`; `InvitationUpdated` to inviter + all invitees on `/user/queue/invitations` | `InvitationDialog` (PrimeNG dialog, Accept / Decline, countdown to `expiresAt`) | same | specified | **D7**: game starts when **all** invitees accepted; **any decline cancels** the invitation (`status: DECLINED`, `declinedBy`) and notifies everyone (fixes B12); a pending invitation **expires after 60 s** (`status: EXPIRED`, notify everyone). Accept/decline on a non-pending invitation → `409`. |
+| 10 | Game start + card deal | `UserStatusWebSocket#beginGame` L379-432, `#generateGameCards` L452-466, `home.jsp` redirect handler L164-174 | When the last invitee accepts: `GameService` creates the game (id), state = `GameEngine.start(...)`; each player gets `GameStarted {gameId}` on `/user/queue/games`; `GET /api/games/{id}` → `GameSnapshotDto` | navigate to `/games/:id` · `GamePage`, `GameTable`, `PlayerCardList`, `CenterCard` | `CardGenerationParityTest`, `RoundTimerParityTest` | specified | Player order: inviter first, then invitees in invitation order (legacy order was arbitrary HashSet order). **D1**: keep the 11 symbols without `G`. ≥ 2 distinct players (D7). |
+| 11 | Rounds & timer | `game.jsp` `initializeGame` L104-118, `startTimer/resetTimer` L189-212, `finTour` handler L143-150; `UserStatusWebSocket` case `finTour` L77-81, `#handleFinTour` L264-276 | Server-driven: `TaskScheduler` per game fires at `roundEndsAt` → `GameEngine.roundTimerExpired` → `/topic/game/{id}` `RoundStarted {round, totalRounds, roundEndsAt, deal, scores}` or `GameFinished` | `RoundTimer` (countdown from `roundEndsAt`), notification "Time's up! Moving to the next round." (French per D21) | `RoundTimerParityTest` | specified | One server timer per game (fixes B9). Kept: N rounds of T s, new cards each round, scores carry over. **D2** seconds per round, **D10** limits. **D17**: a disconnected player's game continues, score kept, `GET /api/games/{id}` restores the view. |
+| 12 | Claims & scoring | `game.jsp` `handleSameColorButton` L255-273, `handleSameFormatButton` L274-293, `handleboth` L295-315; `UserStatusWebSocket#handleUpdateScore` L323-327, `#broadcastUpdatedScores` L330-342 | STOMP SEND `/app/game/{id}/claim` `{claim: SAME_COLOR\|SAME_SYMBOL\|BOTH, dealVersion}`; `GameEngine.claim` → `CORRECT`: `/topic/game/{id}` `ScoresUpdated {scores, deal, scoredBy}`; `WRONG`/`STALE`: `ClaimRejected {reason}` to the sender on `/user/queue/errors`, nothing broadcast | `ClaimButtons` ("The Same Color", "The Same Format", "The Two"; French labels per D21) | `ClaimScoringParityTest` | specified | Server-authoritative (fixes B10). **D8**: rule kept (+1 for any correct claim, BOTH = 1, no penalty), and only the **first correct claim per `dealVersion`** scores; a claim naming another version is `STALE`. |
+| 13 | Game end: result, persistence, stats | `game.jsp` L200-203 (`finPartie`); `UserStatusWebSocket#handleResult` L136-251, `#updatePlayerStats` L253-262; `dto/PartieManager.java`; `dao/PartieDao`, `ParticipationDAO`, `JoueurDao` | On `FINISHED`: one transaction saves a **new** `game` row + one `participation` per player + updated `player` stats (`PlayerStats.afterGame`); `/topic/game/{id}` `GameFinished {draw, winner?, loser?, leaders, topScore, trailers, bottomScore, scores}`; `GET /api/games/{id}/result` → `GameResultDto` (same fields) | — | `GameResultParityTest`, `PlayerStatsParityTest` | specified | **D3**: all-zero = draw, no victory (fixes B3). **D4**: tied leaders share a draw (no winner, no victory); tied trailers → no loser; never the same player as winner and loser (fixes B4). **D5**: only the final winner gets a victory (fixes B5). **D6**: one game row per game, stats and participation every game (fixes B6, B7, B8). **D14**: only the game's players receive the event. `game` stores `total_rounds`, `round_seconds`, `game_mode = 'Normal'`; no combinations (D9). |
+| 14 | Result page | `webApp/WinnerPage.jsp` | `GET /api/games/{id}/result` | `/games/:id/result` · `GameResultPage` ("Gagnant", "Perdant", "Rejouer" → `/lobby`) | — | specified | **D20**: keep the winner/loser layout; the API also returns all scores. **D3/D4**: a draw shows "Égalité" with the tied leaders; no "Perdant" line when there is no single loser. Scores shown as integers (fixes B29). Legacy 2 s delay before showing: optional animation, not required. |
+| 15 | Schema + seed | `model/*.java`, `META-INF/persistence.xml`, `dto/MockData.java` | Flyway `V1__init.sql` (`player`, `game`, `participation`), dev-only seed migration | — | — (`@DataJpaTest` only for custom queries) | specified | **D12**: no `cartes`/`tours` tables, no click ratio/click count columns. **D9**: no combinations column. **D11**: `gender` nullable, check in (`MALE`,`FEMALE`,`OTHER`). **D13**: dev-only seed (separate Flyway location enabled only in the dev profile): `alice`, `bob`, `carol`, bcrypt hash of a dev password documented in the seed file, zero stats. **D18**: unique index on `lower(username)`. |
+| 16 | Unused legacy code | `controller/GameServlet.java` (`/game` endpoint), `UserStatusWebSocket#generateCards` L346-376, `dto/CardTables`, `webSocket/MainApp`, `model/Carte`, `model/Tour`, `enums/Forme`, `enums/Couleur`, `dao/CarteDao`, `dao/TourDao`, `test/UserStatusWebSocketTest` (all commented out) | not ported | — | — | specified | **D12**: not ported. |
 
 ## Legacy inventory
 
@@ -112,7 +112,7 @@ All messages are JSON objects with an `action` field. "All" = every open socket 
 | `Tour` → `tours` | `tourId`, `timestamp` | `partie` many-to-one (not null), `carteCentrale` one-to-one → `Carte` | **never written** |
 | `Carte` → `cartes` | `carteId`, `forme` (enum `Forme`, string), `couleur` (enum `Couleur`, string) | — | **never written** |
 
-Proposed new schema (backend agent owns the final Flyway SQL): `player(id, username unique, password_hash, age, gender, games_played, victories, average_score, created_at)`, `game(id, played_at, total_rounds, round_seconds, game_mode)`, `participation(id, game_id → game, player_id → player, score, unique(game_id, player_id))`. Optional columns depend on Q9 / Q12.
+Proposed new schema (backend agent owns the final Flyway SQL): `player(id, username unique, password_hash, age, gender, games_played, victories, average_score, created_at)`, `game(id, played_at, total_rounds, round_seconds, game_mode)`, `participation(id, game_id → game, player_id → player, score, unique(game_id, player_id))`. No combinations, click ratio or click count columns (D9, D12); `gender` nullable enum (D11); unique `lower(username)` (D18).
 
 ### DAOs
 
@@ -120,75 +120,76 @@ Every DAO (`CarteDao`, `JoueurDao`, `ParticipationDAO`, `PartieDao`, `TourDao`) 
 
 ### Suspected legacy bugs
 
-Behaviour the user must decide on is marked with the question number. Others are fixed implicitly by the target architecture (security, infrastructure) and need no player-visible decision.
+Decision column: **fix** = new code behaves differently (approved), **keep** = legacy behaviour preserved.
+Decisions D1-D21 are listed under "Decisions" below.
 
 | # | Bug | Where | Decision |
 |---|---|---|---|
-| B1 | Symbol list skips `G` (`A-F, H-L`) | `UserStatusWebSocket` L27, L381 | Q1 |
-| B2 | Timer label says "minutes per game", code uses seconds per round | `home.jsp` L72-73 vs `game.jsp` L189-207 | Q2 |
-| B3 | `maxScore = Double.MIN_VALUE` (smallest positive double): all-zero scores → `winner = null`, nobody gets a victory, page shows `null(Score: 4.9E-324 )` | L152 | Q3 |
-| B4 | Ties broken by map iteration order (arbitrary); when all scores are equal (> 0) the **same player is winner and loser** | L166-178 | Q4 |
-| B5 | Victory credited to the **running** leader during the loop: every player who is max-so-far when visited gets a victory (e.g. scores `bob=3, alice=5` in that order → both credited) | L180-184 | Q5 |
-| B6 | `processedUsers` is static and never cleared: stats and participations are saved only for each user's **first game since server start** | L40, L180-181 | Q6 |
-| B7 | `PartieManager` singleton: every game after the first reuses (merges over) the same `Partie` row | `PartieManager` L9-17, L155-160 | Q6 |
-| B8 | Every client sends `finPartie`, so results are computed and broadcast N times (masked by B6/B7) | `game.jsp` L200-203 | fixed by server-driven end |
-| B9 | Every client sends `finTour`: N round broadcasts, N new deals and N score overwrites per round | L77-81 | fixed by server-driven timer |
-| B10 | Client-authoritative scoring: the browser sends its full score map, last writer wins (lost points), any client can send any scores | `game.jsp` L255-315, L323-342 | fixed (server-authoritative), confirm in Q8 |
-| B11 | `invite` ignores `invitees` and invites every other open socket (including players on a game page, who never answer) | L292-300 | Q7 |
-| B12 | A decline is ignored; the game then never starts and the inviter is never told | L306-321 | Q7 |
-| B13 | One global game: a new invite overwrites the running game's settings; `players` is overwritten by the next game | L32-38, L283-285, L385 | fixed (per-game state) |
-| B14 | `players` aliases the `acceptedInvitations` set and the inviter is added to it | L385-386 | fixed |
-| B15 | `scoreUpdate`, `finTour` and the end `redirect` go to **all** sockets: lobby users get redirected to the winner page of someone else's game | L246-250, L271-275, L337-341 | fixed (`/topic/game/{id}`) |
-| B16 | Socket identity from `?username=` (impersonation); NPE if missing | L45-49 | fixed (principal) |
-| B17 | Presence list = static map of HttpSessions, never cleaned on expiry; socket close not reported | `LoginServlet` L27; `home.jsp` L21-31; L54-57 | fixed (STOMP presence) |
-| B18 | Plain-text passwords; login loads all players | `LoginServlet` L82-84 | fixed (bcrypt, query by username) |
-| B19 | No unique username; mismatch forwards to missing `register.jsp`; bad age → 500 | `RegisterServlet` L29-35 | fixed, Q18 |
-| B20 | Profile GET exposes any player's data **and password** | `ProfileServlet` L54-70 | fixed (`/me`, DTO) |
-| B21 | Profile POST merges the stale login-time entity, reverting stats earned since login; error page missing | `ProfileServlet` L101-105, L119-120 | fixed |
-| B22 | XSS / JSON injection: unescaped `error`, `successMessage`, usernames; JSON built with `String.format` / concatenation | `index.jsp` L6-8/L23-25, `home.jsp` L28, L297, L437 | fixed (Angular escaping, Jackson) |
-| B23 | Dead/broken client code: `#scoreButton` click uses undefined `cartes`; `stateUpdate` uses undefined `centerCartes`; `querySelector('#'+username)` throws for usernames starting with a digit or containing special characters | `game.jsp` L164-174, L125-130, L258/276/297 | fixed, Q18 |
-| B24 | `joueurDao.save(j)` before the null check (NPE for unknown user); NPE if stats are null | L214-218, L256 | fixed |
-| B25 | `nombreCombinaisons`, click ratios and click counts never computed; `Tour`/`Carte` never written | various | Q9, Q12 |
-| B26 | Hard-coded `ws://localhost:8080/LearnSocket_war_exploded` and context path | `home.jsp` L118, `game.jsp` L120, `profile.jsp` L14, `WinnerPage.jsp` L70 | fixed (same-origin, proxy) |
-| B27 | DB credentials committed | `META-INF/persistence.xml` L14-16 | fixed (env vars); old password is compromised |
-| B28 | New `EntityManagerFactory` per DAO instance, no transaction spanning a game save; `TourDao` EMF null | `dao/*` | fixed |
-| B29 | Scores sent as strings of doubles (`"3.0"`) and shown as such | L237-238, `WinnerPage.jsp` L85-86 | fixed (integers) |
-| B30 | Empty timer/rounds → `NumberFormatException`, invite silently dropped; `0` rounds behaves as 1 round; `0` s timer ends after ~1 s | L283-285, `game.jsp` L189-207 | Q10 |
+| B1 | Symbol list skips `G` (`A-F, H-L`) | `UserStatusWebSocket` L27, L381 | **keep** (D1) |
+| B2 | Timer label says "minutes per game", code uses seconds per round | `home.jsp` L72-73 vs `game.jsp` L189-207 | **fix** label, keep seconds per round (D2) |
+| B3 | `maxScore = Double.MIN_VALUE` (smallest positive double): all-zero scores → `winner = null`, nobody gets a victory, page shows `null(Score: 4.9E-324 )` | L152 | **fix**: draw (D3) |
+| B4 | Ties broken by map iteration order (arbitrary); when all scores are equal (> 0) the **same player is winner and loser** | L166-178 | **fix**: shared draw, never winner = loser (D4) |
+| B5 | Victory credited to the **running** leader during the loop: every player who is max-so-far when visited gets a victory | L180-184 | **fix**: final winner only (D5) |
+| B6 | `processedUsers` is static and never cleared: stats and participations saved only for each user's first game since server start | L40, L180-181 | **fix** (D6) |
+| B7 | `PartieManager` singleton: every game after the first reuses the same `Partie` row | `PartieManager` L9-17, L155-160 | **fix** (D6) |
+| B8 | Every client sends `finPartie`, so results are computed and broadcast N times | `game.jsp` L200-203 | **fix** (server-driven end) |
+| B9 | Every client sends `finTour`: N round broadcasts, N new deals and N score overwrites per round | L77-81 | **fix** (server-driven timer) |
+| B10 | Client-authoritative scoring: last writer wins, any client can send any scores | `game.jsp` L255-315, L323-342 | **fix** (server-authoritative, D8) |
+| B11 | `invite` ignores `invitees` and invites every other open socket | L292-300 | **fix** (D7) |
+| B12 | A decline is ignored; the game never starts and the inviter is never told | L306-321 | **fix**: decline cancels + notifies, 60 s expiry (D7) |
+| B13 | One global game: a new invite overwrites the running game's settings; `players` overwritten by the next game | L32-38, L283-285, L385 | **fix** (per-game state) |
+| B14 | `players` aliases the `acceptedInvitations` set and the inviter is added to it | L385-386 | **fix** |
+| B15 | `scoreUpdate`, `finTour` and the end `redirect` go to **all** sockets | L246-250, L271-275, L337-341 | **fix** (D14) |
+| B16 | Socket identity from `?username=` (impersonation); NPE if missing | L45-49 | **fix** (principal) |
+| B17 | Presence = static map of HttpSessions, never cleaned; socket close not reported | `LoginServlet` L27; `home.jsp` L21-31; L54-57 | **fix** (STOMP presence, D15) |
+| B18 | Plain-text passwords; login loads all players | `LoginServlet` L82-84 | **fix** (bcrypt) |
+| B19 | No unique username; mismatch forwards to missing `register.jsp`; bad age → 500 | `RegisterServlet` L29-35 | **fix** (D18) |
+| B20 | Profile GET exposes any player's data **and password** | `ProfileServlet` L54-70 | **fix** |
+| B21 | Profile POST merges the stale login-time entity, reverting stats; error page missing | `ProfileServlet` L101-105, L119-120 | **fix** |
+| B22 | XSS / JSON injection (unescaped params and usernames, hand-built JSON) | `index.jsp` L6-8/L23-25, `home.jsp` L28, L297, L437 | **fix** |
+| B23 | Dead/broken client code (`cartes`, `centerCartes` undefined; `querySelector('#'+username)`) | `game.jsp` L164-174, L125-130, L258/276/297 | **fix** (D18 also restricts usernames) |
+| B24 | `joueurDao.save(j)` before the null check; NPE if stats are null | L214-218, L256 | **fix** |
+| B25 | `nombreCombinaisons`, click ratios and click counts never computed; `Tour`/`Carte` never written | various | **fix**: dropped (D9, D12) |
+| B26 | Hard-coded `ws://localhost:8080/LearnSocket_war_exploded` and context path | `home.jsp` L118, `game.jsp` L120, `profile.jsp` L14, `WinnerPage.jsp` L70 | **fix** (same-origin) |
+| B27 | DB credentials committed | `META-INF/persistence.xml` L14-16 | **fix** (env vars); old password compromised |
+| B28 | New `EntityManagerFactory` per DAO instance, no transaction for a game save; `TourDao` EMF null | `dao/*` | **fix** |
+| B29 | Scores sent as strings of doubles (`"3.0"`) | L237-238, `WinnerPage.jsp` L85-86 | **fix** (integers) |
+| B30 | Empty timer/rounds → exception, invite dropped; `0` rounds = 1 round; `0` s ≈ 1 s | L283-285, `game.jsp` L189-207 | **fix**: validation (D10) |
 
-### Open questions (need a user decision)
+### Decisions (user answered "yes to all" recommendations, 2026-11-15)
 
-Recommended answers are what the specs above assume unless the user says otherwise.
-
-| # | Question | Recommendation |
+| # | Question | Decision |
 |---|---|---|
-| Q1 | Symbols skip `G` (11 letters). Keep, or use `A-L` (12)? | Keep the 11 legacy letters (parity; harmless). |
-| Q2 | Timer: seconds per round (what the game does) or minutes per game (what the label says)? | Seconds per round; fix the label. |
-| Q3 | All scores 0: legacy shows no winner (`null`). What should happen? | Declare a **draw**: no winner, no loser, no victory credited; result page says "Draw". |
-| Q4 | Tie for the highest (or lowest) score? | Draw among the tied leaders: nobody gets a victory, the result lists all tied players; same for the lowest score. Never the same player as winner and loser. |
-| Q5 | Victory credited to every "running leader" (often 2+ victories per game). Keep? | Fix: only the final winner gets a victory. |
-| Q6 | Stats/participations saved only for a user's first game since restart, and all games share one `Partie` row. Keep? | Fix: one game row and one participation per player per game, stats updated every game. |
-| Q7 | Invitations: legacy invites everyone online and ignores declines. | Invite only the selected players (picked from the online list, 1+); start when all accept; any decline cancels the invitation and notifies everyone; pending invitations expire after 60 s. |
-| Q8 | Claim rules: +1 for any correct claim, BOTH worth the same 1 point, no penalty, so spamming all three buttons is a winning strategy. Change? | Keep the legacy rule for parity now (pinned in `ClaimScoringParityTest`). Claims carry `dealVersion`, and a claim on an outdated deal is rejected (only the first correct claim on a deal scores). Revisit penalties/BOTH = 2 later as a new feature. |
-| Q9 | "Number of Combinations" is collected but never used. | Drop it from the form, API and schema. |
-| Q10 | Limits for rounds and timer (legacy: none, crashes on empty)? | Rounds 1-20 (default 3), round timer 5-120 s (default 10); `400` ProblemDetail outside the range. |
-| Q11 | Gender: register offers Homme/Femme, profile is free text. | Optional enum `MALE`, `FEMALE`, `OTHER`, shown as a select in both places. |
-| Q12 | Unused data: `cartes`/`tours` tables, click ratios and click counts (always 0, but shown on the profile). | Do not create them; remove the two ratio fields from the profile page. |
-| Q13 | Seed data: `MockData` has no players. What should dev seed contain? | Dev-only Flyway seed (not in prod): players `alice`, `bob`, `carol`, password `password` (bcrypt), zero stats. |
-| Q14 | Results/scores were broadcast to everyone online. | Confirm: only the game's players receive game events (`/topic/game/{id}`). |
-| Q15 | Same user in two tabs? | Allowed; online while at least one tab is connected; game events go to all their tabs. |
-| Q16 | Can a player in a running game be invited? | No: shown as "in game" in the lobby and rejected with `409`. |
-| Q17 | A player disconnects mid-game? | Game continues; their score stays; on reconnect `GET /api/games/{id}` restores the view. |
-| Q18 | Username/password rules (legacy: none). | Username 3-20 chars `[A-Za-z0-9_-]`, unique case-insensitively; password at least 8 chars. Legacy accounts are not migrated. |
-| Q19 | "Changer Mot de Passe" button (no behaviour in legacy). | Out of scope for parity; hide it (add later as a feature). |
-| Q20 | Result page shows only winner and loser. | Keep that layout; the API also returns all scores so a ranking can be added later. |
-| Q21 | UI language: legacy mixes French and English labels. | Pick one (recommend French texts as in the key labels "Gagnant", "Perdant", "Rejouer", "Jouer"), via Angular i18n later. |
+| D1 | Symbols skip `G`? | Keep the 11 legacy letters `A-F, H-L`. |
+| D2 | Timer unit? | Seconds per round; the label is fixed. |
+| D3 | All scores 0? | Draw: no winner, no loser, no victory; result page says "Égalité". |
+| D4 | Ties? | Tied leaders share a draw (no winner, no victory); tied lowest scores → no loser; never the same player as winner and loser. |
+| D5 | Victories to running leaders? | Only the final winner gets a victory. |
+| D6 | Stats only for first game / shared game row? | One game row and one participation per player per game; stats updated after every game. |
+| D7 | Invitations? | Invite only the selected online players (1+, not self); start when all accept; any decline cancels and notifies everyone; pending invitations expire after 60 s. |
+| D8 | Claim rules? | +1 for any correct claim, BOTH = 1, no penalty; only the first correct claim per `dealVersion` scores. |
+| D9 | Number of combinations? | Dropped (form, API, schema). |
+| D10 | Limits? | Rounds 1-20 (default 3); round 5-120 s (default 10); `400` outside. |
+| D11 | Gender? | Optional enum `MALE`, `FEMALE`, `OTHER`, select in register and profile. |
+| D12 | Unused data? | Don't port `cartes`/`tours`, click ratios, click counts; remove ratios from the profile page. |
+| D13 | Seed? | Dev-only seed: `alice`, `bob`, `carol` with a bcrypt-hashed dev password, zero stats. |
+| D14 | Event audience? | Only the game's players receive game events (`/topic/game/{id}`). |
+| D15 | Multiple tabs? | Allowed; online while ≥1 tab is connected; game events reach all tabs. |
+| D16 | Invite a player in a running game? | No: shown `IN_GAME` and rejected with `409`. |
+| D17 | Disconnect mid-game? | Game continues, score kept, `GET /api/games/{id}` restores the view. |
+| D18 | Username/password rules? | Username 3-20 chars `[A-Za-z0-9_-]`, unique ignoring case; password ≥ 8; legacy accounts not migrated. |
+| D19 | "Changer Mot de Passe"? | Out of scope; hidden. |
+| D20 | Result page content? | Keep winner/loser layout; API returns all scores too. |
+| D21 | UI language? | French UI texts. |
+
+No open questions remain.
 
 ## Contract for backend: game engine
 
 Pure Java, package `com.cardgame.game.engine`, **no Spring, no I/O, no static mutable state**. All
 types below are `public`. The parity tests in `backend/src/test/java/com/cardgame/parity/` compile
-against exactly these signatures (verified against a throwaway legacy-faithful reference implementation:
-66/66 cases pass when `@Disabled` is removed).
+against exactly these signatures and encode decisions D1-D10 (checked against a throwaway reference
+implementation of the decided behaviour: 89/89 cases pass with `@Disabled` removed).
 
 ```java
 package com.cardgame.game.engine;
@@ -203,7 +204,7 @@ public record Deal(List<PlayerCard> playerCards, Card centerCard) {
 }
 
 public final class CardDealer {
-    public static final List<Character> SYMBOLS;  // A B C D E F H I J K L  (legacy order, no G - Q1)
+    public static final List<Character> SYMBOLS;  // A B C D E F H I J K L  (legacy order, no G - D1)
     public static final List<CardColor> COLORS;   // RED, BLUE, GREEN       (legacy order)
     public CardDealer(java.util.random.RandomGenerator random);
     public Deal deal(List<String> players);       // IllegalArgumentException if empty
@@ -215,21 +216,34 @@ public final class ClaimRules {
     public static int pointsFor(Claim claim, Card playerCard, Card centerCard);   // 1 or 0
 }
 
-public record GameSettings(int totalRounds, java.time.Duration roundDuration, int combinations) {}
+public record GameSettings(int totalRounds, java.time.Duration roundDuration) {
+    // compact constructor: IllegalArgumentException unless 1 <= totalRounds <= 20
+    //                      and 5 s <= roundDuration <= 120 s (D10). No "combinations" (D9).
+    public static GameSettings defaults();        // 3 rounds, 10 s
+}
 public enum GamePhase { IN_PROGRESS, FINISHED }
 public record GameState(List<String> players, GameSettings settings, GamePhase phase, int currentRound,
-                        SequencedMap<String, Integer> scores, Deal deal, java.time.Instant roundStartedAt) {
+                        SequencedMap<String, Integer> scores, Deal deal, int dealVersion,
+                        java.time.Instant roundStartedAt) {
     public java.time.Instant roundEndsAt();       // roundStartedAt + settings.roundDuration
 }
-public record ClaimOutcome(boolean correct, GameState state) {}
+public enum ClaimStatus { CORRECT, WRONG, STALE }
+public record ClaimOutcome(ClaimStatus status, GameState state) {
+    public boolean correct();                     // status == CORRECT
+}
 public record PlayerOutcome(String player, int score, boolean victory) {}
-public record GameResult(String winner, int winnerScore, String loser, int loserScore,
-                         List<PlayerOutcome> outcomes) {}         // outcomes in player order
+public record GameResult(String winner,           // null = no single winner (draw)
+                         String loser,            // null = no single loser
+                         List<String> leaders, int topScore,
+                         List<String> trailers, int bottomScore,
+                         List<PlayerOutcome> outcomes) {     // outcomes in player order
+    public boolean isDraw();                      // winner == null
+}
 
 public final class GameEngine {
     public GameEngine(java.util.random.RandomGenerator random, java.time.Clock clock);
     public GameState start(List<String> players, GameSettings settings);
-    public ClaimOutcome claim(GameState state, String player, Claim claim);
+    public ClaimOutcome claim(GameState state, String player, Claim claim, int dealVersion);
     public GameState roundTimerExpired(GameState state);
     public GameResult result(GameState state);                      // IllegalStateException unless FINISHED
     public static GameResult determineResult(SequencedMap<String, Integer> scores);
@@ -250,29 +264,33 @@ Behaviour the tests pin:
    `COLORS[i]`; then `nextInt(n)` picks the player whose **symbol** is the center symbol, then `nextInt(n)`
    picks the player whose **color** is the center color (n = player count). Duplicates between players are
    allowed. The center card may match nobody's card exactly.
-3. **start**: phase `IN_PROGRESS`, `currentRound = 1`, scores 0 for every player **in the given player
-   order** (the map is insertion-ordered and tests compare order), one deal, `roundStartedAt = clock.instant()`.
-   `GameState` must hold immutable copies so `equals` works and states are safe to share across threads.
-4. **claim**: `IllegalStateException` if not `IN_PROGRESS`, `IllegalArgumentException` if the player is not
-   in the game. Correct → claimer's score +1 (never more, also for `BOTH`), a **new deal** for everyone,
-   round and `roundStartedAt` unchanged. Wrong → `correct = false` and the **same** state (no random draw).
+3. **start**: `IllegalArgumentException` for fewer than 2 players or duplicate names (D7). Phase
+   `IN_PROGRESS`, `currentRound = 1`, scores 0 for every player **in the given order** (insertion-ordered
+   map; tests compare order), one deal, `dealVersion = 1`, `roundStartedAt = clock.instant()`.
+   `GameState` holds immutable copies so `equals` works and states are safe to share across threads.
+4. **claim** (D8): `IllegalStateException` if not `IN_PROGRESS`; `IllegalArgumentException` if the player
+   is not in the game. Then, in this order: `dealVersion != state.dealVersion()` → `STALE`, same state;
+   wrong claim → `WRONG`, same state (no random draw); correct → `CORRECT`, claimer +1 (also for `BOTH`),
+   new deal, `dealVersion + 1`, round and `roundStartedAt` unchanged.
 5. **roundTimerExpired**: `IllegalStateException` if not `IN_PROGRESS`. If `currentRound < totalRounds` →
-   `currentRound + 1`, new deal, `roundStartedAt = clock.instant()`, scores unchanged. Otherwise phase
-   `FINISHED`, same scores, same deal, **no** random draw.
-6. **determineResult** (legacy semantics, pending Q3-Q5): iterate in map order; winner = first entry with
-   score strictly greater than the running max, which starts at `Double.MIN_VALUE` (so a 0 score never
-   wins); loser = first entry strictly below the running min (starts at `Double.MAX_VALUE`). Tests whose
-   outcome depends on Q3/Q4/Q5 are separately `@Disabled("pending user decision: Qn")`; implement the
-   recommended answer once the user decides, and the transformer will update those tests first.
+   `currentRound + 1`, new deal, `dealVersion + 1`, `roundStartedAt = clock.instant()`, scores unchanged.
+   Otherwise phase `FINISHED`, same scores, deal and `dealVersion`, **no** random draw.
+6. **determineResult** (D3, D4, D5): `topScore` = max, `leaders` = players with max (player order);
+   `bottomScore` = min, `trailers` = players with min, **empty when max == min**. `winner` = the single
+   leader or `null`; `loser` = the single trailer or `null`. `victory` is true only for `winner`.
+   All-zero (or all-equal) scores → draw with no loser and no victory.
 7. **PlayerStats.afterGame**: `gamesPlayed + 1`, `victories + (victory ? 1 : 0)`,
-   `averageScore = (averageScore * gamesPlayed + score) / (gamesPlayed + 1)`.
+   `averageScore = (averageScore * gamesPlayed + score) / (gamesPlayed + 1)`; applied after **every**
+   game (D6).
 
-Not in the engine (service level, see rows 8-13): invitations, scheduling (`TaskScheduler` calls
-`roundTimerExpired` at `roundEndsAt()`), locking/serialising access per game, persistence, messaging,
-`dealVersion` (Q8: a counter the service increments whenever `state.deal()` changes).
+Not in the engine (service level, see rows 8-13): invitations (D7: 60 s expiry, decline cancels),
+scheduling (`TaskScheduler` calls `roundTimerExpired` at `roundEndsAt()`), serialising access per game
+(claims for one game must be applied one at a time so "first correct claim per `dealVersion`" holds),
+persistence (D6), messaging (D14), presence (D15, D16).
 
 ## Hand-off log
 
 | Date | From → To | What |
 |---|---|---|
 | 2026-11-15 | transformer → backend | Legacy moved to `legacy/`. Inventory + plan written. Parity tests for rows 10-13 in `backend/src/test/java/com/cardgame/parity/` (all `@Disabled`). Waiting on user decisions Q1-Q21 for behaviour changes; the backend can scaffold and implement rows 1-3, 15 and the game engine contract now. |
+| 2026-11-15 | user → transformer → backend | All recommendations accepted (D1-D21). Plan rows, bug decisions, engine contract and parity tests updated: draw-aware `GameResult`, `dealVersion` + `ClaimStatus`, `GameSettings` validation/defaults without combinations, ≥ 2 players. Only class-level `pending port` disables remain. Realtime proposal updated (invitation decline/expiry, `ClaimRejected`, draw shape). |

@@ -37,8 +37,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 @Disabled("pending port: rounds/cards/timer (plan row 10-11) - implement com.cardgame.game.engine.CardDealer")
 class CardGenerationParityTest {
 
-    // LEGACY-BUG? The symbol list skips 'G' (A-F, H-L = 11 letters). The unused generateCards() uses A-M.
-    // Kept as-is until the user decides (plan: open question Q1).
+    // DECISION Q1: keep the legacy symbol list, which skips 'G' (A-F, H-L = 11 letters).
+    // (The unused legacy generateCards() uses A-M; it is not the reference.)
     @Test
     void symbolsAreTheElevenLegacyLettersWithoutG() {
         assertThat(CardDealer.SYMBOLS)
