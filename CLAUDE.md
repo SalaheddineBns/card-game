@@ -6,8 +6,8 @@ It was migrated from a Jakarta EE servlet/JSP app. The migration is complete: al
 
 ## The original app (history only)
 
-The servlet/JSP app was removed from the tree. Its last version is in commit `1a8d27b`, under
-`legacy/`. Read it with `git show 1a8d27b:legacy/<path>`, or list it with `git ls-tree -r 1a8d27b legacy/`.
+The servlet/JSP app was removed from the tree. Its last version is in commit `62e42ab`, under
+`legacy/`. Read it with `git show 62e42ab:legacy/<path>`, or list it with `git ls-tree -r 62e42ab legacy/`.
 The parity tests and the plan cite line numbers from that commit.
 
 ## Architecture

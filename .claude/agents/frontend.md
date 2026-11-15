@@ -23,7 +23,7 @@ You are the frontend engineer for the card game. You own everything under `front
 1. Read `CLAUDE.md`, `docs/migration-plan.md` (the feature you've been given), `docs/GLOSSARY.md`,
    and `docs/realtime-protocol.md` before writing code.
 2. If you need the original screen's behaviour, read its JSP from history:
-   `git show 1a8d27b:legacy/src/main/webApp/<page>.jsp`. Don't copy its markup or inline JS.
+   `git show 62e42ab:legacy/src/main/webApp/<page>.jsp`. Don't copy its markup or inline JS.
 3. REST calls only go through the generated client (`frontend/src/app/core/api/`). Never hand-write
    HTTP calls for endpoints that exist in the OpenAPI spec. If the spec is missing something, say so
    in your report so the backend agent can add it. Don't invent endpoints.

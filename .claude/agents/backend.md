@@ -20,7 +20,7 @@ You are the backend engineer for the card game. You own everything under `backen
 ## How you work
 
 1. Read `CLAUDE.md`, `docs/migration-plan.md` (the feature you've been given), and `docs/GLOSSARY.md` before writing code.
-2. If you need the original behaviour, read it from history (`git show 1a8d27b:legacy/src/main/java/<path>`).
+2. If you need the original behaviour, read it from history (`git show 62e42ab:legacy/src/main/java/<path>`).
    Re-design it. Don't transliterate it: no static mutable state, no hand-built `EntityManagerFactory`, no Gson.
 3. Package by feature under `com.cardgame.<feature>` (controller, service, repository, entity, dto, mapper).
 4. Every schema change is a new Flyway migration in `backend/src/main/resources/db/migration`.

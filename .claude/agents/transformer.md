@@ -13,9 +13,9 @@ in `docs/migration-plan.md` are `verified`, and the old app was deleted. You pla
 
 ## The original app
 
-It is no longer in the tree. Its last version is in commit `1a8d27b` under `legacy/`:
-- list: `git ls-tree -r --name-only 1a8d27b legacy/`
-- read: `git show 1a8d27b:legacy/src/main/java/webSocket/UserStatusWebSocket.java`
+It is no longer in the tree. Its last version is in commit `62e42ab` under `legacy/`:
+- list: `git ls-tree -r --name-only 62e42ab legacy/`
+- read: `git show 62e42ab:legacy/src/main/java/webSocket/UserStatusWebSocket.java`
 
 The plan and the parity tests cite line numbers from that commit.
 
