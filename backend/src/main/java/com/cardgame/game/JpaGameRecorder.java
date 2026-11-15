@@ -57,6 +57,26 @@ public class JpaGameRecorder implements GameRecorder {
                 });
     }
 
+    @Override
+    @Transactional
+    public int abandonInProgressStartedBefore(Instant cutoff) {
+        return games.abandonInProgressStartedBefore(cutoff);
+    }
+
+    @Override
+    @Transactional
+    public void abandonGame(long gameId, Instant at) {
+        games.findById(gameId)
+                .filter(game -> game.getStatus() == GameStatus.IN_PROGRESS)
+                .ifPresent(game -> game.abandon(at));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<GameStatus> findStatus(long gameId) {
+        return games.findStatusById(gameId);
+    }
+
     /** Victory is recomputed from the scores with the result rule, so it always matches it (D3-D5). */
     private static List<PlayerGameRecord> toRecords(List<Participation> rows, Map<Long, String> names) {
         SequencedMap<String, Integer> scores = new LinkedHashMap<>();

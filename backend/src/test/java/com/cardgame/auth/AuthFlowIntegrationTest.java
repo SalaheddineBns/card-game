@@ -57,11 +57,12 @@ class AuthFlowIntegrationTest {
                 {"username":"Flow_User","password":"not-the-password"}""");
         assertThat(badLogin.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat((String) JsonPath.read(badLogin.getBody(), "$.detail")).isEqualTo("Nom d'utilisateur ou mot de passe invalide.");
+        assertThat((String) JsonPath.read(badLogin.getBody(), "$.title")).isEqualTo("Échec de la connexion");
 
-        // login (case-insensitive username) sets the session cookie and rotates the CSRF token
+        // login typed in upper case (D18, G2) sets the session cookie and rotates the CSRF token
         String tokenBeforeLogin = client.cookie("XSRF-TOKEN").orElseThrow();
         ResponseEntity<String> login = client.post("/api/auth/login", """
-                {"username":"flow_user","password":"password123"}""");
+                {"username":"FLOW_USER","password":"password123"}""");
         assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat((String) JsonPath.read(login.getBody(), "$.username")).isEqualTo("Flow_User");
         assertThat(login.getHeaders().get(HttpHeaders.SET_COOKIE))

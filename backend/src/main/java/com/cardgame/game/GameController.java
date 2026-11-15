@@ -39,16 +39,17 @@ public class GameController {
 
     @GetMapping("/{id}")
     @Operation(operationId = "getGame", summary = "Live snapshot of a game",
-            description = "Then follow /topic/game/{id}. 409 when the game is finished (use the result).")
-    @ErrorResponses({401, 403, 404, 409})
+            description = "Then follow /topic/game/{id}. 409 when the game is finished (use the result), "
+                    + "410 when it was interrupted by a server restart (D25).")
+    @ErrorResponses({401, 403, 404, 409, 410})
     public GameSnapshotDto snapshot(@PathVariable long id, Principal principal) {
         return games.snapshot(id, principal.getName());
     }
 
     @GetMapping("/{id}/result")
     @Operation(operationId = "getGameResult", summary = "Result of a finished game",
-            description = "409 while the game is still in progress.")
-    @ErrorResponses({401, 403, 404, 409})
+            description = "409 while the game is still in progress, 410 when it was interrupted (D25).")
+    @ErrorResponses({401, 403, 404, 409, 410})
     public GameResultDto result(@PathVariable long id, Principal principal) {
         return games.result(id, principal.getName());
     }

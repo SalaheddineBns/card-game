@@ -104,6 +104,19 @@ class GameControllerTest {
     }
 
     @Test
+    void abandonedGameIsA410Problem() throws Exception {
+        given(games.snapshot(10L, "alice")).willThrow(new GameAbandonedException());
+        given(games.result(10L, "alice")).willThrow(new GameAbandonedException());
+
+        mvc.perform(get("/api/games/10").with(user("alice")))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.status").value(410))
+                .andExpect(jsonPath("$.title").value("Partie interrompue"))
+                .andExpect(jsonPath("$.detail").value("Cette partie a été interrompue par un redémarrage du serveur."));
+        mvc.perform(get("/api/games/10/result").with(user("alice"))).andExpect(status().isGone());
+    }
+
+    @Test
     void requiresASession() throws Exception {
         mvc.perform(get("/api/games/current")).andExpect(status().isUnauthorized());
     }

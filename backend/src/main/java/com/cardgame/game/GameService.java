@@ -101,8 +101,12 @@ public class GameService implements GameLauncher {
     public GameSnapshotDto snapshot(long gameId, String username) {
         Optional<GameSession> live = sessions.find(gameId);
         if (live.isEmpty()) {
-            if (recorder.findFinished(gameId).isPresent()) {
+            GameStatus status = recorder.findStatus(gameId).orElse(null);
+            if (status == GameStatus.FINISHED) {
                 throw new GameFinishedException(gameId);
+            }
+            if (status == GameStatus.ABANDONED) {
+                throw new GameAbandonedException();
             }
             throw new GameNotFoundException(gameId);
         }
@@ -127,7 +131,12 @@ public class GameService implements GameLauncher {
         if (sessions.isLive(gameId)) {
             throw new GameInProgressException(gameId);
         }
-        FinishedGame finished = recorder.findFinished(gameId).orElseThrow(() -> new GameNotFoundException(gameId));
+        GameStatus status = recorder.findStatus(gameId).orElse(null);
+        if (status == GameStatus.ABANDONED) {
+            throw new GameAbandonedException();
+        }
+        FinishedGame finished = (status == GameStatus.FINISHED ? recorder.findFinished(gameId) : Optional.<FinishedGame>empty())
+                .orElseThrow(() -> new GameNotFoundException(gameId));
         String wanted = username.toLowerCase(Locale.ROOT);
         if (finished.records().stream().noneMatch(r -> r.username().toLowerCase(Locale.ROOT).equals(wanted))) {
             throw new NotAGamePlayerException(gameId);
@@ -181,17 +190,33 @@ public class GameService implements GameLauncher {
         List<PlayerGameRecord> records = result.outcomes().stream()
                 .map((PlayerOutcome o) -> new PlayerGameRecord(o.player(), o.score(), o.victory()))
                 .toList();
-        try {
-            recorder.finishGame(gameId, clock.instant(), records);
-        } catch (RuntimeException e) {
-            // the players must not stay stuck "in game"; the result endpoint will answer 404
-            log.error("Could not record the end of game {}", gameId, e);
-        }
+        recordEnd(gameId, records);
         List<PlayerScoreDto> scores = GameDtos.scores(state.scores());
         publisher.toTopic(Destinations.gameTopic(gameId), new GameFinished(gameId, result.isDraw(), result.winner(),
                 result.loser(), result.leaders(), result.topScore(), result.trailers(), result.bottomScore(), scores,
                 clock.instant()));
         presence.setInGame(state.players(), false);
         sessions.remove(gameId);
+    }
+
+    /**
+     * G5: saves the end of the game, retrying once (finishGame is one transaction, so a failed attempt left
+     * nothing behind). If both attempts fail the game is marked ABANDONED so the result answers 410 at once.
+     * Never throws: the players must not stay stuck "in game".
+     */
+    private void recordEnd(long gameId, List<PlayerGameRecord> records) {
+        for (int attempt = 1; attempt <= 2; attempt++) {
+            try {
+                recorder.finishGame(gameId, clock.instant(), records);
+                return;
+            } catch (RuntimeException e) {
+                log.error("Could not record the end of game {} (attempt {}/2)", gameId, attempt, e);
+            }
+        }
+        try {
+            recorder.abandonGame(gameId, clock.instant());
+        } catch (RuntimeException e) {
+            log.error("Could not mark game {} as abandoned; it will be abandoned at the next startup", gameId, e);
+        }
     }
 }

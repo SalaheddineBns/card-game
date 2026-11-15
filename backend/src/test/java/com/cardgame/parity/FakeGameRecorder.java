@@ -2,6 +2,7 @@ package com.cardgame.parity;
 
 import com.cardgame.game.FinishedGame;
 import com.cardgame.game.GameRecorder;
+import com.cardgame.game.GameStatus;
 import com.cardgame.game.PlayerGameRecord;
 import com.cardgame.game.engine.GameSettings;
 import java.time.Instant;
@@ -14,7 +15,7 @@ import java.util.Optional;
 /** In-memory persistence port: plain storage, no rules. Ids start at 1. */
 final class FakeGameRecorder implements GameRecorder {
 
-    enum Status { IN_PROGRESS, FINISHED }
+    enum Status { IN_PROGRESS, FINISHED, ABANDONED }
 
     static final class Row {
         final long id;
@@ -64,6 +65,35 @@ final class FakeGameRecorder implements GameRecorder {
             return Optional.empty();
         }
         return Optional.of(new FinishedGame(row.id, row.finishedAt, row.records));
+    }
+
+    @Override
+    public int abandonInProgressStartedBefore(Instant cutoff) {
+        int count = 0;
+        for (Row row : rows.values()) {
+            if (row.status == Status.IN_PROGRESS && row.startedAt.isBefore(cutoff)) {
+                row.status = Status.ABANDONED;
+                row.finishedAt = cutoff;
+                count++;
+            }
+        }
+        calls.add("abandonInProgressStartedBefore:" + count);
+        return count;
+    }
+
+    @Override
+    public void abandonGame(long gameId, Instant at) {
+        Row row = rows.get(gameId);
+        if (row != null && row.status == Status.IN_PROGRESS) {
+            row.status = Status.ABANDONED;
+            row.finishedAt = at;
+        }
+        calls.add("abandonGame:" + gameId);
+    }
+
+    @Override
+    public Optional<GameStatus> findStatus(long gameId) {
+        return Optional.ofNullable(rows.get(gameId)).map(row -> GameStatus.valueOf(row.status.name()));
     }
 
     Row row(long gameId) {

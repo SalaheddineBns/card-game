@@ -93,24 +93,40 @@ public class InvitationService {
         return toDto(invitation);
     }
 
-    public synchronized InvitationDto accept(long invitationId, String username) {
-        Invitation invitation = forInvitee(invitationId, username);
-        String invitee = invitation.invitee(username).orElseThrow();
-        if (invitation.accepted.contains(invitee)) {
-            return toDto(invitation);
-        }
-        requirePending(invitation);
-        invitation.accepted.add(invitee);
-        invitation.accepted.sort((a, b) -> Integer.compare(invitation.invitees.indexOf(a), invitation.invitees.indexOf(b)));
-        if (invitation.accepted.size() < invitation.invitees.size()) {
+    public InvitationDto accept(long invitationId, String username) {
+        Invitation invitation;
+        synchronized (this) {
+            invitation = forInvitee(invitationId, username);
+            String invitee = invitation.invitee(username).orElseThrow();
+            if (invitation.accepted.contains(invitee)) {
+                return toDto(invitation);
+            }
+            requirePending(invitation);
+            invitation.accepted.add(invitee);
+            invitation.accepted.sort(
+                    (a, b) -> Integer.compare(invitation.invitees.indexOf(a), invitation.invitees.indexOf(b)));
+            if (invitation.accepted.size() < invitation.invitees.size()) {
+                notifyAll(invitation);
+                return toDto(invitation);
+            }
+            invitation.status = InvitationStatus.ACCEPTED;
+            invitation.starting = true;
+            cancelExpiry(invitation);
             notifyAll(invitation);
-            return toDto(invitation);
         }
-        invitation.status = InvitationStatus.ACCEPTED;
-        cancelExpiry(invitation);
-        notifyAll(invitation);
-        invitation.gameId = gameLauncher.startGame(invitation.participants(), invitation.settings);
-        return toDto(invitation);
+        // G9: the game start (DB insert) runs without the service-wide lock; the invitation is already ACCEPTED
+        // and its participants stay "busy" (starting) until the game is registered as live.
+        try {
+            long gameId = gameLauncher.startGame(invitation.participants(), invitation.settings);
+            synchronized (this) {
+                invitation.gameId = gameId;
+                return toDto(invitation);
+            }
+        } finally {
+            synchronized (this) {
+                invitation.starting = false;
+            }
+        }
     }
 
     public synchronized InvitationDto decline(long invitationId, String username) {
@@ -186,7 +202,7 @@ public class InvitationService {
 
     private boolean pendingInvolving(String username) {
         return invitations.values().stream()
-                .anyMatch(i -> i.status == InvitationStatus.PENDING && i.involves(username));
+                .anyMatch(i -> (i.status == InvitationStatus.PENDING || i.starting) && i.involves(username));
     }
 
     private void notifyAll(Invitation invitation) {

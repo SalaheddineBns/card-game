@@ -23,6 +23,7 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfAuthenticationStrategy;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
@@ -95,6 +96,12 @@ public class SecurityConfig {
         csrfRotation.setRequestHandler(new SpaCsrfTokenRequestHandler());
         return new CompositeSessionAuthenticationStrategy(List.of(
                 new ChangeSessionIdAuthenticationStrategy(), csrfRotation));
+    }
+
+    /** Publishes HttpSessionDestroyedEvent (timeouts too), used to close that session's STOMP sockets (G11). */
+    @Bean
+    static HttpSessionEventPublisher httpSessionEventPublisher() {
+        return new HttpSessionEventPublisher();
     }
 
     @Bean

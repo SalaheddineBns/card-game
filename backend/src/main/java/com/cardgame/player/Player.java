@@ -11,9 +11,16 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.DynamicUpdate;
 
-/** A registered account (legacy {@code Joueur}). */
+/**
+ * A registered account (legacy {@code Joueur}).
+ *
+ * <p>{@code @DynamicUpdate}: an UPDATE writes only the changed columns, so a profile edit (age, gender) that
+ * overlaps with the end of a game can't write back stale stats (G3, B21).
+ */
 @Entity
+@DynamicUpdate
 @Table(name = "players")
 public class Player {
 

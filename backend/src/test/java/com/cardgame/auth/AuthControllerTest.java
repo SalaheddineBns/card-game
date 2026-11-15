@@ -107,6 +107,59 @@ class AuthControllerTest {
         verify(playerService, never()).create(any());
     }
 
+    // G1: D18 username rules and D23 password lengths at HTTP level
+    @org.junit.jupiter.params.ParameterizedTest(name = "{0} -> 400 on {1}")
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+            "{\"username\":\"ab\",\"password\":\"password123\",\"age\":25}                       | username",
+            "{\"username\":\"abcdefghijklmnopqrstu\",\"password\":\"password123\",\"age\":25}    | username",
+            "{\"username\":\"bad name\",\"password\":\"password123\",\"age\":25}                 | username",
+            "{\"username\":\"bad!\",\"password\":\"password123\",\"age\":25}                     | username",
+            "{\"username\":\"alice\",\"password\":\"1234567\",\"age\":25}                        | password",
+            "{\"username\":\"alice\",\"password\":\"\",\"age\":25}                               | password",
+            "{\"username\":\"alice\",\"password\":\"password123\",\"age\":0}                     | age",
+            "{\"username\":\"alice\",\"password\":\"password123\"}                                 | age",
+    })
+    void registerRejectsInvalidFields(String body, String field) throws Exception {
+        mvc.perform(post("/api/auth/register").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Requête invalide"))
+                .andExpect(jsonPath("$.errors[?(@.field == '" + field + "')]").exists());
+
+        verify(playerService, never()).create(any());
+    }
+
+    @Test
+    void registerAcceptsPasswordsOfEightAndSeventyTwoCharactersAndRejectsSeventyThree() throws Exception {
+        given(playerService.create(any())).willReturn(ALICE);
+
+        for (int length : new int[] {8, 72}) {
+            mvc.perform(post("/api/auth/register").with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"username\":\"alice\",\"password\":\"%s\",\"age\":25}".formatted("p".repeat(length))))
+                    .andExpect(status().isCreated());
+        }
+        mvc.perform(post("/api/auth/register").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"alice\",\"password\":\"%s\",\"age\":25}".formatted("p".repeat(73))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("password"))
+                .andExpect(jsonPath("$.errors[0].message").value("Le mot de passe doit contenir entre 8 et 72 caractères."));
+    }
+
+    @Test
+    void registerAcceptsUsernamesOfThreeAndTwentyCharacters() throws Exception {
+        given(playerService.create(any())).willReturn(ALICE);
+
+        for (String name : new String[] {"a_b", "A-b_c-d_e-f_g-h_i-j_"}) {
+            mvc.perform(post("/api/auth/register").with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"username\":\"%s\",\"password\":\"password123\",\"age\":1}".formatted(name)))
+                    .andExpect(status().isCreated());
+        }
+    }
+
     @Test
     void registerWithAnUnknownGenderReturns400() throws Exception {
         mvc.perform(post("/api/auth/register").with(csrf())
@@ -163,6 +216,27 @@ class AuthControllerTest {
         assertThat(session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY)).isNotNull();
     }
 
+    // G2 (D18): the principal and the response use the stored spelling, whatever case was typed
+    @Test
+    void loginIgnoresCaseAndReturnsTheStoredSpelling() throws Exception {
+        given(userDetailsService.loadUserByUsername("ALICE")).willReturn(
+                User.withUsername("alice").password(passwordEncoder.encode("password123")).roles("PLAYER").build());
+        given(playerService.getByUsername("alice")).willReturn(ALICE);
+
+        MvcResult result = mvc.perform(post("/api/auth/login").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"ALICE","password":"password123"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("alice"))
+                .andReturn();
+
+        Object context = result.getRequest().getSession(false)
+                .getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+        assertThat(((org.springframework.security.core.context.SecurityContext) context).getAuthentication().getName())
+                .isEqualTo("alice");
+    }
+
     @Test
     void loginWithAWrongPasswordReturns401Problem() throws Exception {
         givenAccount("alice", "password123");
@@ -173,6 +247,8 @@ class AuthControllerTest {
                                 {"username":"alice","password":"wrong-password"}"""))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.title").value("Échec de la connexion"))
                 .andExpect(jsonPath("$.detail").value("Nom d'utilisateur ou mot de passe invalide."));
     }
 

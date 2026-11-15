@@ -25,16 +25,22 @@ public class GameMessagingController {
     private static final Logger log = LoggerFactory.getLogger(GameMessagingController.class);
 
     private final GameService games;
+    private final ClaimRateLimiter rateLimiter;
     private final Clock clock;
 
-    public GameMessagingController(GameService games, Clock clock) {
+    public GameMessagingController(GameService games, ClaimRateLimiter rateLimiter, Clock clock) {
         this.games = games;
+        this.rateLimiter = rateLimiter;
         this.clock = clock;
     }
 
-    /** SEND /app/game/{gameId}/claim. */
+    /** SEND /app/game/{gameId}/claim. Claims over the per-player rate limit are dropped silently (G10). */
     @MessageMapping("/game/{gameId}/claim")
     public void claim(@DestinationVariable long gameId, @Valid @Payload ClaimMessage message, Principal principal) {
+        if (!rateLimiter.tryAcquire(principal.getName())) {
+            log.debug("Claim from {} dropped (rate limit)", principal.getName());
+            return;
+        }
         games.claim(gameId, principal.getName(), message.claim(), message.dealVersion());
     }
 

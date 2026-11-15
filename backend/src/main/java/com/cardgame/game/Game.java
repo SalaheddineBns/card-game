@@ -67,6 +67,15 @@ public class Game {
         return finishedAt;
     }
 
+    /** D25: marks an IN_PROGRESS game as interrupted. @throws IllegalStateException otherwise */
+    public void abandon(Instant at) {
+        if (status != GameStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Game " + id + " is " + status);
+        }
+        this.status = GameStatus.ABANDONED;
+        this.finishedAt = at;
+    }
+
     /** @throws IllegalStateException if already finished */
     public void finish(Instant at) {
         if (status == GameStatus.FINISHED) {

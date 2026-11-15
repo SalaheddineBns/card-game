@@ -39,6 +39,11 @@ server:
         # Secure by default; the local profile turns it off for plain http on localhost.
         secure: ${SESSION_COOKIE_SECURE:true}
 
+cardgame:
+  claims:
+    # G10: claims per player per second; extra ones are dropped silently
+    max-per-second: 10
+
 management:
   endpoints:
     web:

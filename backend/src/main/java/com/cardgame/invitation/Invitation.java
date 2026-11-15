@@ -20,6 +20,8 @@ final class Invitation {
     InvitationStatus status = InvitationStatus.PENDING;
     String declinedBy;
     Long gameId;
+    /** ACCEPTED and the game is being started outside the service lock (G9): participants are still busy. */
+    boolean starting;
     ScheduledFuture<?> expiry;
 
     Invitation(long id, String inviter, List<String> invitees, GameSettings settings, Instant expiresAt) {

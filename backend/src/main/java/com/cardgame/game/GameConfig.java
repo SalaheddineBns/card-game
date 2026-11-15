@@ -4,11 +4,13 @@ import com.cardgame.game.engine.GameEngine;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.random.RandomGenerator;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.SimpleAsyncTaskScheduler;
 
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(ClaimProperties.class)
 class GameConfig {
 
     /** Thread-safe: several games deal concurrently. */

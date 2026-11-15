@@ -46,6 +46,10 @@ Rule: commands that need validation and a clear error (create/accept/decline inv
 |---|---|---|---|
 | `/app/game/{gameId}/claim` | `{"claim":"SAME_COLOR" \| "SAME_SYMBOL" \| "BOTH", "dealVersion": 7}` | Server judges with `GameEngine.claim` (D8). `CORRECT` → `ScoresUpdated` on the game topic. `WRONG` or `STALE` → nothing broadcast; `ClaimRejected {reason}` to the sender only. No penalty. | `updateScore` |
 
+Rate limit (G10): at most 10 claims per player per second (`cardgame.claims.max-per-second`); extra claims are
+dropped silently (no `ClaimRejected`). A game interrupted by a restart (D25) is not live: subscribing to its topic is
+refused and its REST endpoints answer 410.
+
 Legacy `invite`, `response`, `finTour` (C→S) and `finPartie` have **no STOMP equivalent**:
 invitations are REST (`POST /api/invitations`, `POST /api/invitations/{id}/accept|decline`) and the
 server drives round changes and the end of the game with its own timer.
@@ -164,3 +168,4 @@ Notes:
 | 2026-11-15 | transformer | Applied D7 (decline/expiry statuses), D8 (`ClaimRejected`, `dealVersion`), D3-D5 (draw-aware `GameFinished`), D9/D10 (settings), D16 (`IN_GAME`). |
 | 2026-11-15 | backend | Implemented all destinations and events (status IMPLEMENTED). Added: handshake 401, ERROR-frame behaviour for CSRF/forbidden SUBSCRIBE, logout closes sockets, `Error` only to the sending tab, heartbeats 10 s. No shape changes. |
 | 2026-11-15 | backend | Confirmed the CSRF `CONNECT` header (`X-XSRF-TOKEN`, raw cookie value). Added the `PlayerStatusChanged` example. No STOMP destination implemented yet (auth only). |
+| 2026-11-16 | backend | Claim rate limit (G10, extra claims dropped silently); HTTP session expiry closes its STOMP connections (G11); D25 games answer 410. No payload changes. |

@@ -36,7 +36,8 @@ public class OpenApiConfig {
             401, "No valid session",
             403, "Missing/invalid CSRF token, or not allowed",
             404, "Not found",
-            409, "Conflict with the current state");
+            409, "Conflict with the current state",
+            410, "The game was interrupted (server restart) and has no result");
 
     @Bean
     OpenAPI cardGameOpenApi() {

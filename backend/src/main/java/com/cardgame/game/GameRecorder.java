@@ -16,4 +16,17 @@ public interface GameRecorder {
 
     /** Only FINISHED games; records in player order. */
     Optional<FinishedGame> findFinished(long gameId);
+
+    /**
+     * D25: one bulk update IN_PROGRESS → ABANDONED with {@code finished_at = cutoff} for games started before
+     * {@code cutoff}. Writes no participations and no stats.
+     *
+     * @return the number of games abandoned
+     */
+    int abandonInProgressStartedBefore(Instant cutoff);
+
+    /** Marks one IN_PROGRESS game ABANDONED (its end could not be saved, G5). No-op for other statuses. */
+    void abandonGame(long gameId, Instant at);
+
+    Optional<GameStatus> findStatus(long gameId);
 }
