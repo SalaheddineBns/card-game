@@ -22,8 +22,8 @@ You are the frontend engineer for the card game. You own everything under `front
 
 1. Read `CLAUDE.md`, `docs/migration-plan.md` (the feature you've been given), `docs/GLOSSARY.md`,
    and `docs/realtime-protocol.md` before writing code.
-2. Look at the legacy JSP (`legacy/src/main/webApp/*.jsp`) for the screen you are rebuilding so you
-   keep its behaviour and content. Don't copy its markup or inline JS. It is read-only.
+2. If you need the original screen's behaviour, read its JSP from history:
+   `git show 1a8d27b:legacy/src/main/webApp/<page>.jsp`. Don't copy its markup or inline JS.
 3. REST calls only go through the generated client (`frontend/src/app/core/api/`). Never hand-write
    HTTP calls for endpoints that exist in the OpenAPI spec. If the spec is missing something, say so
    in your report so the backend agent can add it. Don't invent endpoints.
@@ -43,7 +43,7 @@ frontend/src/app/
 
 ## Boundaries
 
-- Don't edit `backend/` or `legacy/`.
+- Don't edit `backend/`.
 - Don't add a UI library besides PrimeNG, or a state library (NgRx and similar) without an ADR in `docs/adr/`.
 - End with a short report: files changed, commands run and their results, and anything the backend
   or transformer still needs to do.

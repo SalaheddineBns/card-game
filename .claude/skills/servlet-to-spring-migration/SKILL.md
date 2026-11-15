@@ -5,6 +5,10 @@ description: Playbook for migrating the legacy Jakarta EE servlet/JSP/WebSocket 
 
 # Servlet → Spring Boot + Angular migration
 
+> **Status: complete.** All features are `verified` and `legacy/` was deleted. The original code is
+> in commit `1a8d27b` (`git show 1a8d27b:legacy/<path>`). Use this playbook to understand past
+> decisions, or to port any behaviour of the original app that turns out to be missing.
+
 ## Legacy → target mapping
 
 | Legacy | Target |
@@ -72,6 +76,6 @@ Statuses: `todo` → `specified` → `backend` → `frontend` → `verified`.
 ## Rules
 
 - Legacy is the **behaviour reference**, not a design reference. Keep what it does. Re-design how it does it.
-- Never edit `legacy/`.
+- The original code is read from git history (`1a8d27b`), never restored into the tree.
 - Write every behaviour difference from legacy (bug fixes, security fixes) in the plan's notes column,
   and get the user's agreement for anything a player would notice.

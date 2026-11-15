@@ -1,53 +1,57 @@
 # Card Game
 
-A multiplayer card game being migrated from a **Jakarta EE servlet/JSP app** to
-**Spring Boot (backend) + Angular (frontend)**.
+A multiplayer card game built with **Spring Boot (backend) + Angular (frontend)**.
+It was migrated from a Jakarta EE servlet/JSP app. The migration is complete: all 16 features in
+`docs/migration-plan.md` are `verified`, and the old app was deleted.
 
-## Current state (legacy)
+## The original app (history only)
 
-- Servlets in `controller/` (Login, Register, Profile, Game, Logout), JSP views, `HttpSession` auth.
-- One raw WebSocket `@ServerEndpoint("/userStatus")` (`webSocket/UserStatusWebSocket.java`) holding
-  **all game logic** (invitations, rounds, timer, card generation) in static mutable state.
-- EclipseLink JPA + MySQL, DAOs that each build their own `EntityManagerFactory`.
-- Domain is in French: `Joueur`, `Partie`, `Tour`, `Carte`, `Participation`, `Couleur`, `Forme`.
+The servlet/JSP app was removed from the tree. Its last version is in commit `1a8d27b`, under
+`legacy/`. Read it with `git show 1a8d27b:legacy/<path>`, or list it with `git ls-tree -r 1a8d27b legacy/`.
+The parity tests and the plan cite line numbers from that commit.
 
-## Target architecture
+## Architecture
 
 ```
-legacy/        ← the current app, moved here with git mv. READ-ONLY until parity, then deleted
 backend/       ← Spring Boot 4.x, Java 25, Maven, PostgreSQL, Flyway
-frontend/      ← Angular (latest), Tailwind 4, PrimeNG (Aura preset)
+frontend/      ← Angular 22, Tailwind 4, PrimeNG 22 (Aura preset)
 docs/          ← migration-plan.md, GLOSSARY.md, realtime-protocol.md, adr/
-compose.yaml   ← local PostgreSQL
+compose.yaml   ← local PostgreSQL (password from .env)
 ```
 
 | Concern       | Decision |
 |---------------|----------|
-| Strategy      | Parallel rewrite, not in-place. Legacy stays untouched as the behavioural reference |
-| Backend       | `com.cardgame`, package-by-feature (`auth/`, `player/`, `game/`, `invitation/`) |
-| Database      | PostgreSQL, Flyway owns the schema (`ddl-auto=validate`), fresh start, seed from legacy `MockData` |
-| Auth          | Spring Security, session cookie (HttpOnly) + CSRF. Angular dev proxy, so everything is same-origin |
-| Real-time     | Spring WebSocket + STOMP (`/topic/game/{id}`, `/user/queue/invitations`). Game state lives in a Spring service, never in static fields |
-| API contract  | springdoc OpenAPI → generated Angular client. STOMP messages documented in `docs/realtime-protocol.md` |
-| Naming        | English in new code. `docs/GLOSSARY.md` maps English ↔ French legacy names |
-| Testing       | Backend: JUnit 5 + slices + Testcontainers. Frontend: Vitest + Testing Library + Playwright. Parity tests before each game rule is ported |
+| Backend       | `com.cardgame`, package-by-feature (`auth/`, `player/`, `presence/`, `invitation/`, `game/`, `realtime/`) |
+| Database      | PostgreSQL. Flyway owns the schema (`ddl-auto=validate`). Dev seed (alice/bob/carol) only in the `local` profile |
+| Auth          | Spring Security, session cookie (HttpOnly) + CSRF (raw `XSRF-TOKEN` cookie → `X-XSRF-TOKEN` header, also on STOMP CONNECT) |
+| Real-time     | Spring WebSocket + STOMP at `/ws`. Live game state lives in Spring services, never in static fields |
+| API contract  | springdoc OpenAPI → generated Angular client in `frontend/src/app/core/api` (committed, never hand-edited). STOMP messages are in `docs/realtime-protocol.md` |
+| Naming        | English in code, French in the UI. `docs/GLOSSARY.md` maps them to the original French names |
+| Testing       | Backend: JUnit 5 + slices + Testcontainers, plus parity tests in `com.cardgame.parity`. Frontend: Vitest + Testing Library + Playwright |
+| Decisions     | D1–D26 in `docs/migration-plan.md`. ADRs in `docs/adr/` |
 
-## Agents and how they work together
+## Running locally
 
-Subagents cannot call each other. **The main session coordinates them**:
+```bash
+cp .env.example .env              # set POSTGRES_PASSWORD
+docker compose up -d
+cd backend && sdk env && ./mvnw spring-boot:run      # :8080, local profile, reads ../.env
+cd frontend && npm install && npx ng serve --port 4300   # proxy → BACKEND_URL (default :8080)
+```
 
-1. **transformer**: inventories a legacy feature, updates `docs/migration-plan.md`, writes parity specs.
-2. **backend**: implements the API, persistence, and STOMP side for that feature.
-3. **frontend**: implements the Angular screens on top of the generated client and realtime service.
-4. **transformer**: checks parity against legacy and ticks the feature off in the plan.
+## Agents
 
-Hand-offs between agents happen through files in `docs/` (plan, protocol, glossary), never through
-assumptions. Each agent preloads its best-practice skills from `.claude/skills/`.
+- **backend** and **frontend** build features in their own folders.
+- **transformer** keeps `docs/` coherent: plan, decisions, glossary and protocol. It writes parity
+  or contract tests before behaviour changes and verifies features end to end.
+
+Subagents can't call each other, so the main session coordinates them. Hand-offs go through files in `docs/`.
 
 ## Rules
 
-- Never edit anything under `legacy/`.
-- Never put secrets in committed files. Use env vars (`SPRING_DATASOURCE_*`) and `application-local.yml` (gitignored).
+- Never put secrets in committed files. Use `.env` (gitignored) or env vars.
 - Never change a Flyway migration that has already been applied. Add a new one.
-- Before writing code that uses a domain term, add or check its entry in `docs/GLOSSARY.md`.
-- Use English for identifiers and commit messages.
+- Don't change parity test expectations without a recorded user decision in `docs/migration-plan.md`.
+- After changing the API, run `./mvnw verify` (it regenerates `backend/target/openapi.json`), then
+  `npm run api:generate` in `frontend/`.
+- Use English for identifiers and commit messages, French for UI text.
