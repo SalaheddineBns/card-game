@@ -19,6 +19,12 @@ const QUIET = { context: new HttpContext().set(SKIP_ERROR_TOAST, true) };
 /** If the server never answers a claim (lost frame), the buttons unlock after this. */
 const CLAIM_TIMEOUT_MS = 3_000;
 
+/**
+ * R2: if `GameFinished` hasn't arrived this long after the last round's end (server clock),
+ * reload the snapshot: 409 → result page, 410 → lobby, still live → re-arm.
+ */
+const FINISH_GRACE_MS = 2_000;
+
 export type ClaimFeedback =
   | { kind: 'scored'; message: string }
   | { kind: 'scored-by-other'; message: string }
@@ -45,6 +51,7 @@ export class GameStore {
   private gameId = 0;
   private buffer: GameEvent[] | null = null;
   private claimTimer: ReturnType<typeof setTimeout> | undefined;
+  private finishTimer: ReturnType<typeof setTimeout> | undefined;
 
   private readonly _game = signal<GameView | null>(null);
   private readonly _loadState = signal<LoadState>('loading');
@@ -71,7 +78,10 @@ export class GameStore {
           void this.loadSnapshot();
         }
       });
-    this.destroyRef.onDestroy(() => clearTimeout(this.claimTimer));
+    this.destroyRef.onDestroy(() => {
+      clearTimeout(this.claimTimer);
+      clearTimeout(this.finishTimer);
+    });
   }
 
   open(gameId: number): void {
@@ -115,7 +125,7 @@ export class GameStore {
         await this.goToResult();
         return;
       }
-      this._game.set(snapshot);
+      this.setGame(snapshot);
       this._loadState.set('ready');
       const buffered = this.buffer ?? [];
       this.buffer = null;
@@ -126,6 +136,7 @@ export class GameStore {
   }
 
   private async onSnapshotError(error: unknown): Promise<void> {
+    clearTimeout(this.finishTimer);
     const status = error instanceof HttpErrorResponse ? error.status : null;
     const problem = problemOf(error);
     switch (status) {
@@ -149,6 +160,9 @@ export class GameStore {
           status === 0 ? 'Serveur injoignable.' : problem?.detail,
         );
         this._loadState.set('failed');
+        if (this._game()) {
+          this.armFinishWatchdog(); // keep checking while the stale view stays on screen
+        }
     }
   }
 
@@ -163,14 +177,14 @@ export class GameStore {
     }
     this.unlockClaims();
     if (event.type === 'ScoresUpdated') {
-      this._game.set({ ...game, scores: event.scores, deal: event.deal });
+      this.setGame({ ...game, scores: event.scores, deal: event.deal });
       this._feedback.set(
         event.scoredBy.toLowerCase() === this.me().toLowerCase()
           ? { kind: 'scored', message: 'Bien joué ! +1 point.' }
           : { kind: 'scored-by-other', message: `${event.scoredBy} marque un point !` },
       );
     } else {
-      this._game.set({
+      this.setGame({
         ...game,
         round: event.round,
         // The event has no start instant: a round lasts exactly `roundSeconds`.
@@ -206,12 +220,33 @@ export class GameStore {
     );
   }
 
+  private setGame(game: GameView): void {
+    this._game.set(game);
+    this.armFinishWatchdog();
+  }
+
+  /** Armed only during the last round; replaced on every state change. */
+  private armFinishWatchdog(): void {
+    clearTimeout(this.finishTimer);
+    const game = this._game();
+    if (!game || game.round < game.settings.totalRounds) {
+      return;
+    }
+    const remaining = Date.parse(game.roundEndsAt) + FINISH_GRACE_MS - this.serverClock.now();
+    // Already overdue (e.g. the reload found the game still live): retry after the grace period.
+    this.finishTimer = setTimeout(
+      () => void this.loadSnapshot(),
+      remaining > 0 ? remaining : FINISH_GRACE_MS,
+    );
+  }
+
   private unlockClaims(): void {
     clearTimeout(this.claimTimer);
     this._pendingClaim.set(null);
   }
 
   private async goToResult(): Promise<void> {
+    clearTimeout(this.finishTimer);
     await this.router.navigate(['/games', this.gameId, 'result'], { replaceUrl: true });
   }
 }
