@@ -1,0 +1,60 @@
+/*
+ * Layer order: PrimeNG styles sit after Tailwind's theme/base and before components/utilities,
+ * so Tailwind utilities override PrimeNG without !important.
+ * The `primeng` layer name matches `cssLayer` in app.config.ts.
+ */
+@layer theme, base, primeng, components, utilities;
+
+@import 'tailwindcss';
+/* Tailwind v4 entry of tailwindcss-primeui: PrimeNG design tokens as utilities (bg-primary, text-muted-color...). */
+@import 'tailwindcss-primeui';
+@import 'primeicons/primeicons.css';
+
+/* Same selector as PrimeNG's `darkModeSelector`, toggled on <html> by ThemeService. */
+@custom-variant dark (&:where(.app-dark, .app-dark *));
+
+/*
+ * Game-specific card colours (the only colours not taken from PrimeNG tokens).
+ * Card text sits on these backgrounds, so each has a contrast colour.
+ * Never show a card's colour through colour alone: also render its name or initial.
+ */
+:root {
+  --card-red: #c62828;
+  --card-blue: #1565c0;
+  --card-green: #2e7d32;
+  --card-contrast: #ffffff;
+}
+
+:root.app-dark {
+  --card-red: #e05555;
+  --card-blue: #4a8fe0;
+  --card-green: #3f9b47;
+  --card-contrast: #0b0b0f;
+}
+
+/* Exposes the variables as Tailwind colours: bg-card-red, text-card-contrast, border-card-blue... */
+@theme inline {
+  --color-card-red: var(--card-red);
+  --color-card-blue: var(--card-blue);
+  --color-card-green: var(--card-green);
+  --color-card-contrast: var(--card-contrast);
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-surface-50 text-surface-900 antialiased dark:bg-surface-950 dark:text-surface-0;
+    font-family:
+      Inter,
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
+  }
+}

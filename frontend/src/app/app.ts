@@ -1,0 +1,10 @@
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { Layout } from './core/layout/layout';
+
+@Component({
+  selector: 'app-root',
+  imports: [Layout],
+  template: '<app-layout />',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class App {}

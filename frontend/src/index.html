@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Speedest Game</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Speedest Game : le jeu de cartes de rapidité multijoueur." />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <script>
+      // Apply the stored or system theme before first paint (ThemeService takes over after bootstrap).
+      try {
+        var t = localStorage.getItem('card-game.theme');
+        if (t === 'dark' || (t === null && matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('app-dark');
+        }
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <app-root></app-root>
+  </body>
+</html>
