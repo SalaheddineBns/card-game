@@ -58,8 +58,8 @@ server drives round changes and the end of the game with its own timer.
 | `GET /api/invitations/pending` | pending invitations of the caller (as inviter or invitee) when the lobby opens |
 | `POST /api/invitations`, `POST /api/invitations/{id}/accept`, `/decline` | invitation commands (`201`/`200` `InvitationDto`; 400/404/409 ProblemDetail) |
 | `GET /api/games/current` | snapshot of the caller's live game, or `204`: the lobby redirects to `/games/:id` after a reload (D17) |
-| `GET /api/games/{id}` | full `GameSnapshot` when the game page opens or reconnects (then follow `/topic/game/{id}`); 403 not a player, 404, 409 finished |
-| `GET /api/games/{id}/result` | result page; 403 not a player, 404, 409 still in progress |
+| `GET /api/games/{id}` | full `GameSnapshot` when the game page opens or reconnects (then follow `/topic/game/{id}`); 403 not a player, 404, 409 finished, 410 abandoned (D25) |
+| `GET /api/games/{id}/result` | result page; 403 not a player, 404, 409 still in progress, 410 abandoned by a server restart (D25) |
 
 ## Event shapes (implemented)
 
@@ -128,6 +128,15 @@ Notes:
 - Order on the user queue at game start: `InvitationUpdated(ACCEPTED)` (invitations queue), then `GameStarted` (games queue).
 - `Error` on `/user/queue/errors` comes from `@MessageExceptionHandler` when a STOMP handler throws a domain error (e.g. 403 not a player, 404 game not live).
 
+## Client rules (joining a game)
+
+1. On `GameStarted` (or when `GET /api/games/current` returns a game), **subscribe to `/topic/game/{id}` first**,
+   then call `GET /api/games/{id}`.
+2. Keep the snapshot's `deal.dealVersion`. Ignore any `ScoresUpdated` / `RoundStarted` whose `deal.dealVersion` is
+   lower than or equal to it; `GameFinished` always applies.
+3. On `409` from the snapshot, the game is finished: go to `/games/{id}/result`. On `410` (D25), show the detail and go
+   to `/lobby`.
+
 ## Legacy → new mapping
 
 | Legacy `action` | Direction | New |
@@ -150,6 +159,7 @@ Notes:
 | Date | Author | Change |
 |---|---|---|
 | 2026-11-15 | transformer | Initial proposal derived from legacy `/userStatus`. |
+| 2026-11-15 | transformer | D25: 410 for abandoned games on snapshot/result. No STOMP change (abandoned games had no live session, so no event is sent). |
 | 2026-11-15 | transformer | Aligned with the services contract: `PlayerOnline.status`, `PlayerStatusChanged`, REST for pending invitations and current game, error codes, D22 game id. |
 | 2026-11-15 | transformer | Applied D7 (decline/expiry statuses), D8 (`ClaimRejected`, `dealVersion`), D3-D5 (draw-aware `GameFinished`), D9/D10 (settings), D16 (`IN_GAME`). |
 | 2026-11-15 | backend | Implemented all destinations and events (status IMPLEMENTED). Added: handshake 401, ERROR-frame behaviour for CSRF/forbidden SUBSCRIBE, logout closes sockets, `Error` only to the sending tab, heartbeats 10 s. No shape changes. |
