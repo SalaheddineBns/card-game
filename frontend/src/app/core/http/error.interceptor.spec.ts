@@ -4,9 +4,11 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { firstValueFrom } from 'rxjs';
+import { ALICE, provideAuthApi, signIn } from '../../../testing/auth';
 import { AuthStore } from '../auth/auth-store';
-import { SKIP_ERROR_TOAST, errorInterceptor } from './error.interceptor';
 import { HttpContext } from '@angular/common/http';
+import { errorInterceptor } from './error.interceptor';
+import { SKIP_ERROR_TOAST } from './skip-error-toast';
 
 describe('errorInterceptor', () => {
   let http: HttpClient;
@@ -20,6 +22,7 @@ describe('errorInterceptor', () => {
         provideHttpClient(withInterceptors([errorInterceptor])),
         provideHttpClientTesting(),
         MessageService,
+        provideAuthApi(ALICE),
       ],
     });
     http = TestBed.inject(HttpClient);
@@ -32,7 +35,7 @@ describe('errorInterceptor', () => {
 
   it('clears the user and redirects to login on 401', async () => {
     const auth = TestBed.inject(AuthStore);
-    auth.setCurrentUser({ username: 'alice' });
+    await signIn();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
     const request = firstValueFrom(http.get('/api/players/me'));

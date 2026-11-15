@@ -11,6 +11,7 @@ import {
   LOCALE_ID,
   effect,
   inject,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   provideEnvironmentInitializer,
 } from '@angular/core';
@@ -20,6 +21,7 @@ import Aura from '@primeuix/themes/aura';
 import { MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 import { routes } from './app.routes';
+import { provideApi } from './core/api';
 import { AuthStore } from './core/auth/auth-store';
 import { errorInterceptor } from './core/http/error.interceptor';
 import { RealtimeService } from './core/realtime/realtime.service';
@@ -56,7 +58,11 @@ export const appConfig: ApplicationConfig = {
       withXsrfConfiguration({ cookieName: 'XSRF-TOKEN', headerName: 'X-XSRF-TOKEN' }),
       withInterceptors([errorInterceptor]),
     ),
-    // TODO(api): after `npm run api:generate`, add `{ provide: BASE_PATH, useValue: '' }` from core/api.
+    // Relative URLs (`/api/...`): same origin through the dev proxy, and Angular only adds the
+    // X-XSRF-TOKEN header to relative URLs.
+    provideApi(''),
+    // Know who is logged in before the first navigation (also primes the XSRF-TOKEN cookie).
+    provideAppInitializer(() => inject(AuthStore).restoreSession()),
     providePrimeNG({
       theme: {
         preset: CardGamePreset,

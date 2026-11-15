@@ -1,0 +1,69 @@
+<section class="mx-auto flex max-w-md flex-col gap-6 px-4 py-12 sm:py-16">
+  <header class="text-center">
+    <h1 class="text-3xl font-bold tracking-tight">Connexion</h1>
+    <p class="mt-2 text-muted-color">Connectez-vous pour lancer votre partie.</p>
+  </header>
+
+  <form
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    novalidate
+    aria-label="Connexion"
+    class="flex flex-col gap-5 rounded-xl border border-surface bg-surface-0 p-6 shadow-sm dark:bg-surface-900"
+  >
+    @if (formError(); as message) {
+      <p-message severity="error" role="alert">{{ message }}</p-message>
+    }
+
+    <div class="flex flex-col gap-2">
+      <label for="login-username" class="font-medium">Nom d'utilisateur</label>
+      <input
+        pInputText
+        id="login-username"
+        formControlName="username"
+        autocomplete="username"
+        autocapitalize="none"
+        spellcheck="false"
+        [attr.aria-invalid]="errors().username ? true : null"
+        [attr.aria-describedby]="errors().username ? 'login-username-error' : null"
+        class="w-full"
+      />
+      @if (errors().username; as message) {
+        <p-message id="login-username-error" severity="error" variant="simple" size="small">{{
+          message
+        }}</p-message>
+      }
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="login-password" class="font-medium">Mot de passe</label>
+      <p-password
+        inputId="login-password"
+        formControlName="password"
+        autocomplete="current-password"
+        [feedback]="false"
+        [toggleMask]="true"
+        [fluid]="true"
+      />
+      @if (errors().password; as message) {
+        <p-message severity="error" variant="simple" size="small">{{ message }}</p-message>
+      }
+    </div>
+
+    <p-button
+      type="submit"
+      label="Se connecter"
+      icon="pi pi-sign-in"
+      [loading]="pending()"
+      [disabled]="pending()"
+      styleClass="w-full"
+    />
+  </form>
+
+  <p class="text-center text-sm text-muted-color">
+    Pas encore de compte ?
+    <a routerLink="/auth/register" class="font-medium text-primary hover:underline"
+      >Créer un compte</a
+    >
+  </p>
+</section>

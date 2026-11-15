@@ -1,0 +1,4 @@
+# Files the generator must not (re)create. Everything else here is generated: never edit by hand.
+README.md
+git_push.sh
+.gitignore

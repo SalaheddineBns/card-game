@@ -1,0 +1,139 @@
+<section class="mx-auto flex max-w-lg flex-col gap-6 px-4 py-12 sm:py-16">
+  <header class="text-center">
+    <h1 class="text-3xl font-bold tracking-tight">Créer un compte</h1>
+    <p class="mt-2 text-muted-color">
+      Bienvenue dans le jeu de cartes de rapidité. Inscrivez-vous et lancez votre partie.
+    </p>
+  </header>
+
+  <form
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    novalidate
+    aria-label="Créer un compte"
+    class="flex flex-col gap-5 rounded-xl border border-surface bg-surface-0 p-6 shadow-sm dark:bg-surface-900"
+  >
+    @if (formError(); as message) {
+      <p-message severity="error" role="alert">{{ message }}</p-message>
+    }
+
+    <div class="flex flex-col gap-2">
+      <label for="register-username" class="font-medium">Nom d'utilisateur</label>
+      <input
+        pInputText
+        id="register-username"
+        formControlName="username"
+        autocomplete="username"
+        autocapitalize="none"
+        spellcheck="false"
+        aria-describedby="register-username-help"
+        [attr.aria-invalid]="errors().username ? true : null"
+        class="w-full"
+      />
+      @if (errors().username; as message) {
+        <p-message severity="error" variant="simple" size="small">{{ message }}</p-message>
+      } @else {
+        <small id="register-username-help" class="text-muted-color"
+          >3 à 20 caractères : lettres, chiffres, « _ » ou « - ».</small
+        >
+      }
+    </div>
+
+    <div class="grid gap-5 sm:grid-cols-2">
+      <div class="flex flex-col gap-2">
+        <label for="register-age" class="font-medium">Âge</label>
+        <input
+          pInputText
+          id="register-age"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          step="1"
+          formControlName="age"
+          [attr.aria-invalid]="errors().age ? true : null"
+          class="w-full"
+        />
+        @if (errors().age; as message) {
+          <p-message severity="error" variant="simple" size="small">{{ message }}</p-message>
+        }
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <span id="register-gender-label" class="font-medium"
+          >Genre <span class="font-normal text-muted-color">(facultatif)</span></span
+        >
+        <p-select
+          inputId="register-gender"
+          ariaLabelledBy="register-gender-label"
+          formControlName="gender"
+          [options]="genderOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Non précisé"
+          [showClear]="true"
+          appendTo="body"
+          [fluid]="true"
+        />
+        @if (errors().gender; as message) {
+          <p-message severity="error" variant="simple" size="small">{{ message }}</p-message>
+        }
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="register-password" class="font-medium">Mot de passe</label>
+      <p-password
+        inputId="register-password"
+        formControlName="password"
+        autocomplete="new-password"
+        [feedback]="false"
+        [toggleMask]="true"
+        [fluid]="true"
+      />
+      @if (errors().password; as message) {
+        <p-message severity="error" variant="simple" size="small">{{ message }}</p-message>
+      } @else {
+        <small class="text-muted-color">8 à 72 caractères.</small>
+      }
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="register-confirm" class="font-medium">Confirmer le mot de passe</label>
+      <p-password
+        inputId="register-confirm"
+        formControlName="confirmPassword"
+        autocomplete="new-password"
+        [feedback]="false"
+        [toggleMask]="true"
+        [fluid]="true"
+      />
+      @if (errors().confirmPassword; as message) {
+        <p-message severity="error" variant="simple" size="small">{{ message }}</p-message>
+      }
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center gap-2">
+        <p-checkbox inputId="register-terms" formControlName="acceptTerms" [binary]="true" />
+        <label for="register-terms">J'accepte les conditions d'utilisation</label>
+      </div>
+      @if (errors().acceptTerms; as message) {
+        <p-message severity="error" variant="simple" size="small">{{ message }}</p-message>
+      }
+    </div>
+
+    <p-button
+      type="submit"
+      label="Créer mon compte"
+      icon="pi pi-user-plus"
+      [loading]="pending()"
+      [disabled]="pending()"
+      styleClass="w-full"
+    />
+  </form>
+
+  <p class="text-center text-sm text-muted-color">
+    Déjà inscrit ?
+    <a routerLink="/auth/login" class="font-medium text-primary hover:underline">Se connecter</a>
+  </p>
+</section>
