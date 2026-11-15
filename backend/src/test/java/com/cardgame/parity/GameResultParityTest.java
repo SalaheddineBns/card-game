@@ -14,7 +14,6 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.SequencedMap;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -36,7 +35,6 @@ import org.junit.jupiter.params.provider.CsvSource;
  * everybody has the same score). Winner = the single leader, else none (draw). Loser = the single trailer,
  * else none. Lists are in player order.
  */
-@Disabled("pending port: scoring/winner (plan row 13) - implement GameEngine#determineResult / GameEngine#result")
 class GameResultParityTest {
 
     @ParameterizedTest(name = "{0} -> winner {1} ({2}), loser {3} ({4})")

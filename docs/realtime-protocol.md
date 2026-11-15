@@ -12,7 +12,7 @@
 |---|---|
 | Endpoint | `/ws` (native WebSocket, same origin through the Angular dev proxy) |
 | Auth | The HTTP session cookie from `POST /api/auth/login`. No `?username=`; the principal is the logged-in player. Unauthenticated CONNECT is refused. |
-| CSRF | Send the CSRF token in the STOMP `CONNECT` headers (header name: `X-XSRF-TOKEN`) - backend to confirm |
+| CSRF | **Confirmed (backend, 2026-11-15):** send the raw value of the `XSRF-TOKEN` cookie in the STOMP `CONNECT` frame header `X-XSRF-TOKEN` (same name and value as the HTTP header). The server will accept the raw (unmasked) cookie value, as for HTTP. The cookie is rotated at login, so read it right before connecting. (STOMP endpoint not implemented yet: row 7.) |
 | Application prefix | `/app` (client SEND) |
 | Broker prefixes | `/topic` (broadcast), `/queue` (per user, via `/user/queue/...`) |
 | Payload | JSON, UTF-8. Every event has a `type` field (discriminator) and a `sentAt` ISO-8601 instant. |
@@ -57,6 +57,8 @@ server drives round changes and the end of the game with its own timer.
 // /topic/presence
 { "type": "PlayerOnline",  "username": "alice", "sentAt": "..." }
 { "type": "PlayerOffline", "username": "alice", "sentAt": "..." }
+// D16: status is "ONLINE" | "IN_GAME"; sent when a player enters or leaves a running game
+{ "type": "PlayerStatusChanged", "username": "alice", "status": "IN_GAME", "sentAt": "2026-11-15T20:15:30Z" }
 
 // /user/queue/invitations
 // settings: totalRounds 1-20 (default 3), roundSeconds 5-120 (default 10) - D10; no combinations - D9
@@ -134,3 +136,4 @@ Notes:
 |---|---|---|
 | 2026-11-15 | transformer | Initial proposal derived from legacy `/userStatus`. |
 | 2026-11-15 | transformer | Applied D7 (decline/expiry statuses), D8 (`ClaimRejected`, `dealVersion`), D3-D5 (draw-aware `GameFinished`), D9/D10 (settings), D16 (`IN_GAME`). |
+| 2026-11-15 | backend | Confirmed the CSRF `CONNECT` header (`X-XSRF-TOKEN`, raw cookie value). Added the `PlayerStatusChanged` example. No STOMP destination implemented yet (auth only). |

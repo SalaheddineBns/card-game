@@ -14,7 +14,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Random;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -35,7 +34,6 @@ import org.junit.jupiter.params.provider.CsvSource;
  * {@code GameEngine#roundTimerExpired} when it fires. Round semantics are the same: N rounds of T seconds
  * (DECISION Q2: the timer is seconds per round; the legacy label "minutes per game" was wrong).
  */
-@Disabled("pending port: rounds/cards/timer (plan rows 10-11) - implement com.cardgame.game.engine.GameEngine")
 class RoundTimerParityTest {
 
     private static final Instant T0 = Instant.parse("2026-01-01T10:00:00Z");

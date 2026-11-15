@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: card-game-backend
+  threads:
+    virtual:
+      enabled: true
+  # Datasource: override with SPRING_DATASOURCE_URL / SPRING_DATASOURCE_USERNAME / SPRING_DATASOURCE_PASSWORD.
+  # The password has no default on purpose (env var or the gitignored application-local.yml).
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cardgame
+    username: cardgame
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration
+  mvc:
+    problemdetails:
+      enabled: true
+  jackson:
+    default-property-inclusion: always
+
+server:
+  error:
+    include-stacktrace: never
+    include-message: never
+  servlet:
+    session:
+      timeout: 2h
+      cookie:
+        http-only: true
+        same-site: lax
+        # Secure by default; the local profile turns it off for plain http on localhost.
+        secure: ${SESSION_COOKIE_SECURE:true}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+---
+# Local development profile (committed, no secrets). Put secrets/overrides in application-local.yml.
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    # D13: dev-only seed (alice, bob, carol) - local profile only.
+    locations: classpath:db/migration,classpath:db/seed
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false

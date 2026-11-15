@@ -11,7 +11,6 @@ import com.cardgame.game.engine.PlayerCard;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -34,7 +33,6 @@ import org.junit.jupiter.params.provider.ValueSource;
  * {@code nextInt(3)} for the color; then {@code nextInt(playerCount)} picks the player whose symbol becomes
  * the center symbol, then {@code nextInt(playerCount)} picks the player whose color becomes the center color.
  */
-@Disabled("pending port: rounds/cards/timer (plan row 10-11) - implement com.cardgame.game.engine.CardDealer")
 class CardGenerationParityTest {
 
     // DECISION Q1: keep the legacy symbol list, which skips 'G' (A-F, H-L = 11 letters).

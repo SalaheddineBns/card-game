@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import com.cardgame.game.engine.PlayerStats;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -21,7 +20,6 @@ import org.junit.jupiter.params.provider.CsvSource;
  * Legacy NPEs if gamesPlayed or averageScore is null (line 256); new code uses non-null primitives.
  * Click ratios ({@code ratioClicRéussi}, {@code ratioClicRapide}) are never updated by legacy and stay 0.0.
  */
-@Disabled("pending port: scoring/winner (plan row 13) - implement com.cardgame.game.engine.PlayerStats")
 class PlayerStatsParityTest {
 
     @Test
