@@ -9,12 +9,8 @@
  */
 
 
-export interface ProblemDetail { 
-    type?: string;
-    title?: string;
-    status?: number;
-    detail?: string;
-    instance?: string;
-    properties?: { [key: string]: any | null; };
+export interface PlayerScoreDto { 
+    player?: string;
+    score?: number;
 }
 

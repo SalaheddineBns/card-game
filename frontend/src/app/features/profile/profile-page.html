@@ -1,0 +1,126 @@
+<section class="mx-auto max-w-5xl px-4 py-10 sm:py-14">
+  <h1 class="text-3xl font-bold tracking-tight">Mon profil</h1>
+
+  @if (profile(); as player) {
+    <div class="mt-8 grid gap-6 lg:grid-cols-[18rem_1fr]">
+      <aside
+        class="flex flex-col items-center gap-3 rounded-xl border border-surface bg-surface-0 p-6 text-center shadow-sm dark:bg-surface-900"
+      >
+        <p-avatar [label]="initial()" size="xlarge" shape="circle" aria-hidden="true" />
+        <p class="text-xl font-semibold">{{ player.username }}</p>
+        <p class="text-sm text-muted-color">Joueur de Speedest Game</p>
+      </aside>
+
+      <div class="flex flex-col gap-6">
+        <section
+          aria-labelledby="stats-heading"
+          class="rounded-xl border border-surface bg-surface-0 p-6 shadow-sm dark:bg-surface-900"
+        >
+          <h2 id="stats-heading" class="text-lg font-semibold">Statistiques de jeu</h2>
+          <dl class="mt-4 grid gap-4 sm:grid-cols-3">
+            <div class="rounded-lg bg-emphasis p-4">
+              <dt class="text-sm text-muted-color">Parties jouées</dt>
+              <dd class="mt-1 text-3xl font-bold">{{ player.gamesPlayed }}</dd>
+            </div>
+            <div class="rounded-lg bg-emphasis p-4">
+              <dt class="text-sm text-muted-color">Victoires</dt>
+              <dd class="mt-1 text-3xl font-bold">{{ player.victories }}</dd>
+            </div>
+            <div class="rounded-lg bg-emphasis p-4">
+              <dt class="text-sm text-muted-color">Score moyen</dt>
+              <dd class="mt-1 text-3xl font-bold">{{ player.averageScore | number: '1.0-2' }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <form
+          [formGroup]="form"
+          (ngSubmit)="submit()"
+          novalidate
+          aria-labelledby="details-heading"
+          class="flex flex-col gap-5 rounded-xl border border-surface bg-surface-0 p-6 shadow-sm dark:bg-surface-900"
+        >
+          <h2 id="details-heading" class="text-lg font-semibold">Informations personnelles</h2>
+
+          @if (formError(); as message) {
+            <p-message severity="error" role="alert">{{ message }}</p-message>
+          }
+
+          <div class="grid gap-5 sm:grid-cols-2">
+            <div class="flex flex-col gap-2">
+              <label for="profile-username" class="font-medium">Nom d'utilisateur</label>
+              <input
+                pInputText
+                id="profile-username"
+                [value]="player.username"
+                readonly
+                class="w-full"
+              />
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <label for="profile-age" class="font-medium">Âge</label>
+              <input
+                pInputText
+                id="profile-age"
+                type="number"
+                inputmode="numeric"
+                min="1"
+                step="1"
+                formControlName="age"
+                [attr.aria-invalid]="errors().age ? true : null"
+                class="w-full"
+              />
+              @if (errors().age; as message) {
+                <p-message severity="error" variant="simple" size="small">{{ message }}</p-message>
+              }
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <span id="profile-gender-label" class="font-medium"
+                >Genre <span class="font-normal text-muted-color">(facultatif)</span></span
+              >
+              <p-select
+                inputId="profile-gender"
+                ariaLabelledBy="profile-gender-label"
+                formControlName="gender"
+                [options]="genderOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Non précisé"
+                [showClear]="true"
+                appendTo="body"
+                [fluid]="true"
+              />
+              @if (errors().gender; as message) {
+                <p-message severity="error" variant="simple" size="small">{{ message }}</p-message>
+              }
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-3">
+            <p-button
+              type="button"
+              label="Annuler"
+              severity="secondary"
+              [outlined]="true"
+              [disabled]="unchanged() || pending()"
+              (onClick)="cancel()"
+            />
+            <p-button type="submit" label="Mettre à jour" [loading]="pending()" />
+          </div>
+        </form>
+      </div>
+    </div>
+  } @else if (loadFailed()) {
+    <div class="mt-8 flex flex-col items-start gap-4">
+      <p-message severity="error">Impossible de charger votre profil.</p-message>
+      <p-button label="Réessayer" icon="pi pi-refresh" (onClick)="retry()" />
+    </div>
+  } @else {
+    <div class="mt-8 grid gap-6 lg:grid-cols-[18rem_1fr]" aria-busy="true" aria-label="Chargement">
+      <p-skeleton height="14rem" />
+      <p-skeleton height="20rem" />
+    </div>
+  }
+</section>

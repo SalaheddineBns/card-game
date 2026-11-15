@@ -1,0 +1,81 @@
+<form
+  [formGroup]="form"
+  (ngSubmit)="submit()"
+  novalidate
+  aria-labelledby="setup-heading"
+  class="flex flex-col gap-5 rounded-xl border border-surface bg-surface-0 p-6 shadow-sm dark:bg-surface-900"
+>
+  <h2 id="setup-heading" class="text-lg font-semibold">Nouvelle partie</h2>
+
+  <div class="grid gap-5 sm:grid-cols-2">
+    <div class="flex flex-col gap-2">
+      <label for="setup-rounds" class="font-medium">Nombre de manches</label>
+      <input
+        pInputText
+        id="setup-rounds"
+        type="number"
+        inputmode="numeric"
+        [min]="limits.rounds.min"
+        [max]="limits.rounds.max"
+        step="1"
+        formControlName="totalRounds"
+        aria-describedby="setup-rounds-help"
+        [attr.aria-invalid]="errors().totalRounds ? true : null"
+        class="w-full"
+      />
+      @if (errors().totalRounds; as message) {
+        <p-message severity="error" variant="simple" size="small">{{ message }}</p-message>
+      } @else {
+        <small id="setup-rounds-help" class="text-muted-color"
+          >Entre {{ limits.rounds.min }} et {{ limits.rounds.max }}.</small
+        >
+      }
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="setup-seconds" class="font-medium">Secondes par manche</label>
+      <input
+        pInputText
+        id="setup-seconds"
+        type="number"
+        inputmode="numeric"
+        [min]="limits.seconds.min"
+        [max]="limits.seconds.max"
+        step="1"
+        formControlName="roundSeconds"
+        aria-describedby="setup-seconds-help"
+        [attr.aria-invalid]="errors().roundSeconds ? true : null"
+        class="w-full"
+      />
+      @if (errors().roundSeconds; as message) {
+        <p-message severity="error" variant="simple" size="small">{{ message }}</p-message>
+      } @else {
+        <small id="setup-seconds-help" class="text-muted-color"
+          >Entre {{ limits.seconds.min }} et {{ limits.seconds.max }} secondes.</small
+        >
+      }
+    </div>
+  </div>
+
+  <div class="rounded-lg bg-emphasis px-4 py-3 text-sm">
+    <span class="font-medium">Joueurs invités :</span>
+    <span [class.text-muted-color]="invitees().length === 0">{{ inviteesLabel() }}</span>
+  </div>
+
+  <div class="flex flex-wrap justify-end gap-3">
+    <p-button
+      type="button"
+      label="Réinitialiser"
+      severity="secondary"
+      [outlined]="true"
+      (onClick)="reset()"
+    />
+    <p-button
+      type="submit"
+      label="Envoyer l'invitation"
+      icon="pi pi-send"
+      [loading]="pending()"
+      [disabled]="!canSubmit()"
+    />
+  </div>
+</form>

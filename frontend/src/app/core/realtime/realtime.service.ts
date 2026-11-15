@@ -1,9 +1,11 @@
 import { DOCUMENT } from '@angular/common';
 import { HttpXsrfTokenExtractor } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { RxStomp, RxStompState } from '@stomp/rx-stomp';
-import { Observable, filter, map } from 'rxjs';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { IFrame, RxStomp, RxStompState } from '@stomp/rx-stomp';
+import { Observable, filter, firstValueFrom, map, tap } from 'rxjs';
+import { AuthService } from '../api';
+import { ServerClock } from './server-clock';
 import {
   CSRF_CONNECT_HEADER,
   ClaimCommand,
@@ -30,43 +32,76 @@ const STATE_BY_RX_STATE: Record<RxStompState, ConnectionState> = {
   [RxStompState.CLOSED]: 'disconnected',
 };
 
+const HEARTBEAT_MS = 10_000;
+const RECONNECT_DELAY_MS = 5_000;
+/** Backoff after a broker ERROR frame: 1 s, 2 s, 4 s... capped. */
+const ERROR_BACKOFF_BASE_MS = 1_000;
+const ERROR_BACKOFF_MAX_MS = 30_000;
+/** A connection that stays open this long resets the backoff. */
+const STABLE_CONNECTION_MS = 30_000;
+
 /**
  * Owns the single STOMP connection (docs/realtime-protocol.md). Components never touch rx-stomp:
  * they use the typed streams below. Subscriptions made before `connect()` start once connected,
  * and rx-stomp re-subscribes them after a reconnect.
+ *
+ * - Socket closed (network, server restart): rx-stomp reconnects every 5 s.
+ * - STOMP ERROR frame (bad CSRF on CONNECT, forbidden SUBSCRIBE): Spring keeps the socket open
+ *   but the session is unusable, so it is fatal: deactivate, then reconnect with backoff.
+ * - The CSRF cookie is read right before every CONNECT (it rotates at login).
  */
 @Injectable({ providedIn: 'root' })
 export class RealtimeService {
   private readonly document = inject(DOCUMENT);
   private readonly xsrf = inject(HttpXsrfTokenExtractor);
+  private readonly authApi = inject(AuthService);
+  private readonly serverClock = inject(ServerClock);
   private readonly rxStomp = new RxStomp();
+
+  /** True between `connect()` and `disconnect()`, including while waiting to reconnect. */
+  private wanted = false;
+  /** True from a broker ERROR until the delayed reconnect. */
+  private restarting = false;
+  private errorCount = 0;
+  private restartTimer: ReturnType<typeof setTimeout> | undefined;
+  private stableTimer: ReturnType<typeof setTimeout> | undefined;
 
   readonly connectionState = toSignal(
     this.rxStomp.connectionState$.pipe(map((state) => STATE_BY_RX_STATE[state])),
     { requireSync: true },
   );
 
-  /** Opens the connection with the session cookie. Idempotent. Called once the player is logged in. */
-  connect(): void {
-    if (this.rxStomp.active) {
-      return;
-    }
+  constructor() {
     this.rxStomp.configure({
       brokerURL: this.brokerUrl(),
-      heartbeatIncoming: 10_000,
-      heartbeatOutgoing: 10_000,
-      reconnectDelay: 5_000,
-      // Read the CSRF cookie on every (re)connect: Spring may rotate it after login.
-      beforeConnect: (client) => {
-        const token = this.xsrf.getToken();
-        client.configure({ connectHeaders: token ? { [CSRF_CONNECT_HEADER]: token } : {} });
-      },
+      heartbeatIncoming: HEARTBEAT_MS,
+      heartbeatOutgoing: HEARTBEAT_MS,
+      reconnectDelay: RECONNECT_DELAY_MS,
+      beforeConnect: (client) => this.prepareConnect(client),
     });
+    this.rxStomp.stompErrors$
+      .pipe(takeUntilDestroyed())
+      .subscribe((frame) => this.onBrokerError(frame));
+    this.rxStomp.connectionState$
+      .pipe(takeUntilDestroyed())
+      .subscribe((state) => this.trackStability(state));
+  }
+
+  /** Opens the connection with the session cookie. Idempotent. Called once the player is logged in. */
+  connect(): void {
+    this.wanted = true;
+    if (this.rxStomp.active || this.restarting) {
+      return;
+    }
     this.rxStomp.activate();
   }
 
   /** Closes the connection (logout, 401). Safe to call when not connected. */
   async disconnect(): Promise<void> {
+    this.wanted = false;
+    this.errorCount = 0;
+    this.restarting = false;
+    clearTimeout(this.restartTimer);
     if (this.rxStomp.active) {
       await this.rxStomp.deactivate();
     }
@@ -106,7 +141,54 @@ export class RealtimeService {
     return this.rxStomp.watch({ destination }).pipe(
       map((message) => parseJson(message.body)),
       filter((payload): payload is E => hasType(payload, types)),
+      tap((event) => this.observeSentAt(event)),
     );
+  }
+
+  /** Puts the current CSRF cookie in the CONNECT headers; asks the server for one if it is missing. */
+  private async prepareConnect(client: RxStomp): Promise<void> {
+    let token = this.xsrf.getToken();
+    if (token === null) {
+      try {
+        await firstValueFrom(this.authApi.me());
+      } catch {
+        // No session: the handshake will be refused and rx-stomp retries later.
+      }
+      token = this.xsrf.getToken();
+    }
+    client.configure({ connectHeaders: token ? { [CSRF_CONNECT_HEADER]: token } : {} });
+  }
+
+  private onBrokerError(frame: IFrame): void {
+    console.warn('STOMP ERROR frame, reconnecting:', frame.headers['message'] ?? frame.body);
+    if (!this.wanted || this.restarting) {
+      return;
+    }
+    const delay = Math.min(ERROR_BACKOFF_BASE_MS * 2 ** this.errorCount, ERROR_BACKOFF_MAX_MS);
+    this.errorCount++;
+    this.restarting = true;
+    void this.rxStomp.deactivate().then(() => {
+      this.restartTimer = setTimeout(() => {
+        if (this.restarting && this.wanted) {
+          this.restarting = false;
+          this.rxStomp.activate();
+        }
+      }, delay);
+    });
+  }
+
+  private trackStability(state: RxStompState): void {
+    clearTimeout(this.stableTimer);
+    if (state === RxStompState.OPEN) {
+      this.stableTimer = setTimeout(() => (this.errorCount = 0), STABLE_CONNECTION_MS);
+    }
+  }
+
+  private observeSentAt(event: object): void {
+    const sentAt = (event as Record<string, unknown>)['sentAt'];
+    if (typeof sentAt === 'string') {
+      this.serverClock.observe(sentAt);
+    }
   }
 
   private brokerUrl(): string {

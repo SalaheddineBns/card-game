@@ -1,25 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-/** One invalid request field, as listed in a 400 ProblemDetail's `errors`. */
-export interface FieldViolation {
-  field: string;
-  message: string;
-}
+import { FieldViolation, Problem } from '../api';
+
+export type { FieldViolation } from '../api';
 
 /**
- * RFC 9457 problem detail, as returned by the backend's `GlobalExceptionHandler`
- * (French `title`/`detail`). Hand-written because the generated `ProblemDetail` model
- * does not describe the `errors` extension.
+ * RFC 9457 problem detail from the backend's `GlobalExceptionHandler` (French `title`/`detail`),
+ * generated as `Problem`; `errors` (FieldViolation[]) is only set on 400 validation errors.
  */
-export interface ProblemDetail {
-  type?: string;
-  title?: string;
-  status?: number;
-  detail?: string;
-  instance?: string;
-  /** Validation errors (400 only). */
-  errors?: FieldViolation[];
-}
+export type ProblemDetail = Problem;
 
 export function isProblemDetail(value: unknown): value is ProblemDetail {
   if (typeof value !== 'object' || value === null) {

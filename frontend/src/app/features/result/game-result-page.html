@@ -1,0 +1,76 @@
+<section class="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-12 sm:py-16">
+  <h1 class="text-center text-3xl font-bold tracking-tight">Résultat de la partie</h1>
+
+  @if (view(); as r) {
+    <div
+      class="flex flex-col items-center gap-4 rounded-2xl border border-surface bg-surface-0 p-8 text-center shadow-sm dark:bg-surface-900"
+    >
+      @if (r.winner) {
+        <i class="pi pi-trophy text-5xl text-primary" aria-hidden="true"></i>
+        <p class="text-2xl">
+          <span class="font-semibold">Gagnant :</span> {{ r.winner }}
+          <span class="text-muted-color">(Score : {{ r.topScore }})</span>
+        </p>
+      } @else {
+        <i class="pi pi-equals text-5xl text-primary" aria-hidden="true"></i>
+        <p class="text-2xl font-semibold">Égalité</p>
+        <p class="text-muted-color">Ex aequo : {{ leadersLabel() }} (Score : {{ r.topScore }})</p>
+      }
+
+      @if (r.loser) {
+        <p class="text-xl">
+          <span class="font-semibold">Perdant :</span> {{ r.loser }}
+          <span class="text-muted-color">(Score : {{ r.bottomScore }})</span>
+        </p>
+      }
+
+      @if (outcome(); as message) {
+        <p class="rounded-full bg-primary px-4 py-1 text-sm font-semibold text-primary-contrast">
+          {{ message }}
+        </p>
+      }
+    </div>
+
+    <section aria-labelledby="scores-heading">
+      <h2 id="scores-heading" class="mb-3 text-lg font-semibold">Tous les scores</h2>
+      <table class="w-full overflow-hidden rounded-xl border border-surface text-left">
+        <thead class="bg-emphasis text-sm text-muted-color">
+          <tr>
+            <th scope="col" class="px-4 py-2 font-medium">Joueur</th>
+            <th scope="col" class="px-4 py-2 text-right font-medium">Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.player) {
+            <tr class="border-t border-surface" [class.font-semibold]="row.isMe">
+              <td class="px-4 py-2">
+                {{ row.player }}
+                @if (row.isMe) {
+                  <span class="text-sm font-normal text-muted-color">(vous)</span>
+                }
+              </td>
+              <td class="px-4 py-2 text-right tabular-nums">{{ row.score }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    <div class="flex justify-center">
+      <a pButton size="large" routerLink="/lobby">
+        <i pButtonIcon class="pi pi-replay" aria-hidden="true"></i>
+        <span pButtonLabel>Rejouer</span>
+      </a>
+    </div>
+  } @else if (result.error()) {
+    <div class="flex flex-col items-center gap-4">
+      <p>Impossible de charger le résultat.</p>
+      <p-button label="Réessayer" icon="pi pi-refresh" (onClick)="result.reload()" />
+    </div>
+  } @else {
+    <div class="flex flex-col gap-4" aria-busy="true" aria-label="Chargement du résultat">
+      <p-skeleton height="12rem" />
+      <p-skeleton height="8rem" />
+    </div>
+  }
+</section>

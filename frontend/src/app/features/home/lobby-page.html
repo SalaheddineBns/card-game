@@ -1,0 +1,69 @@
+<section class="mx-auto max-w-6xl px-4 py-10 sm:py-14">
+  <header class="mb-8">
+    <h1 class="text-3xl font-bold tracking-tight">Salon</h1>
+    <p class="mt-2 text-muted-color">
+      Choisissez vos adversaires parmi les joueurs connectés et lancez une partie.
+    </p>
+  </header>
+
+  @if (currentGameId(); as gameId) {
+    <p-message severity="info" styleClass="mb-6">
+      <div class="flex flex-wrap items-center gap-3">
+        <span>Vous avez une partie en cours.</span>
+        <a pButton size="small" [routerLink]="['/games', gameId]">
+          <i pButtonIcon class="pi pi-play" aria-hidden="true"></i>
+          <span pButtonLabel>Rejoindre la partie</span>
+        </a>
+      </div>
+    </p-message>
+  }
+
+  <div class="grid gap-6 lg:grid-cols-[20rem_1fr]">
+    <app-online-players-panel
+      [players]="onlinePlayers()"
+      [selected]="selected()"
+      (selectedChange)="setSelected($event)"
+      [disabled]="outgoing() !== null"
+    />
+
+    <div class="flex flex-col gap-6">
+      @if (outgoingStatus(); as status) {
+        <section
+          aria-labelledby="outgoing-heading"
+          role="status"
+          class="rounded-xl border border-primary bg-surface-0 p-5 shadow-sm dark:bg-surface-900"
+        >
+          <h2 id="outgoing-heading" class="flex items-center gap-2 font-semibold">
+            <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+            Invitation envoyée
+            <span class="ml-auto text-sm font-normal text-muted-color"
+              >{{ status.secondsLeft }} s</span
+            >
+          </h2>
+          <p class="mt-2 text-sm">Ont accepté : {{ status.accepted }}</p>
+          @if (status.waiting) {
+            <p class="text-sm text-muted-color">En attente de : {{ status.waiting }}</p>
+          }
+        </section>
+      }
+
+      <app-game-setup-form
+        [invitees]="selected()"
+        [pending]="sending()"
+        [locked]="outgoing() !== null"
+        (invite)="invite($event)"
+      />
+    </div>
+  </div>
+</section>
+
+@if (incoming(); as invitation) {
+  <app-invitation-dialog
+    [invitation]="invitation"
+    [secondsLeft]="incomingSecondsLeft()"
+    [accepted]="incomingAccepted()"
+    [busy]="responding()"
+    (accept)="accept(invitation.id)"
+    (decline)="decline(invitation.id)"
+  />
+}

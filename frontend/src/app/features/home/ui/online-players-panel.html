@@ -1,0 +1,41 @@
+<section
+  aria-labelledby="online-heading"
+  class="rounded-xl border border-surface bg-surface-0 p-5 shadow-sm dark:bg-surface-900"
+>
+  <h2 id="online-heading" class="flex items-center gap-2 text-lg font-semibold">
+    <i class="pi pi-users" aria-hidden="true"></i>
+    Joueurs connectés
+    <span class="ml-auto text-sm font-normal text-muted-color">{{ players().length }}</span>
+  </h2>
+
+  @if (rows().length === 0) {
+    <p class="mt-4 text-sm text-muted-color">
+      Aucun autre joueur en ligne pour le moment. Invitez un ami à se connecter !
+    </p>
+  } @else {
+    <ul class="mt-4 flex flex-col gap-1" aria-label="Joueurs connectés">
+      @for (row of rows(); track row.username) {
+        <li class="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-emphasis">
+          <p-checkbox
+            [inputId]="row.inputId"
+            [binary]="true"
+            [ngModel]="row.checked"
+            (ngModelChange)="toggle(row.username, $event)"
+            [disabled]="row.inGame || disabled()"
+          />
+          <label [for]="row.inputId" class="flex-1 cursor-pointer truncate font-medium">{{
+            row.username
+          }}</label>
+          @if (row.inGame) {
+            <p-tag value="En partie" severity="warn" [rounded]="true" />
+          } @else {
+            <p-tag value="En ligne" severity="success" [rounded]="true" />
+          }
+        </li>
+      }
+    </ul>
+    <p class="mt-3 text-xs text-muted-color">
+      Cochez les joueurs à inviter. Les joueurs en partie ne peuvent pas être invités.
+    </p>
+  }
+</section>

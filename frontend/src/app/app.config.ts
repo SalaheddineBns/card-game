@@ -23,6 +23,7 @@ import { providePrimeNG } from 'primeng/config';
 import { routes } from './app.routes';
 import { provideApi } from './core/api';
 import { AuthStore } from './core/auth/auth-store';
+import { acceptInterceptor } from './core/http/accept.interceptor';
 import { errorInterceptor } from './core/http/error.interceptor';
 import { RealtimeService } from './core/realtime/realtime.service';
 
@@ -56,7 +57,7 @@ export const appConfig: ApplicationConfig = {
       // Spring Security's CookieCsrfTokenRepository names (also Angular's defaults, kept explicit).
       // Angular adds the header to same-origin, non-GET, relative-URL requests only.
       withXsrfConfiguration({ cookieName: 'XSRF-TOKEN', headerName: 'X-XSRF-TOKEN' }),
-      withInterceptors([errorInterceptor]),
+      withInterceptors([acceptInterceptor, errorInterceptor]),
     ),
     // Relative URLs (`/api/...`): same origin through the dev proxy, and Angular only adds the
     // X-XSRF-TOKEN header to relative URLs.

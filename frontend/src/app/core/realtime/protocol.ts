@@ -1,5 +1,5 @@
 /**
- * STOMP message types. Mirrors docs/realtime-protocol.md exactly (status: PROPOSAL).
+ * STOMP message types. Mirrors docs/realtime-protocol.md exactly (status: IMPLEMENTED).
  * When the backend changes a shape there, change it here. Discriminated on `type`.
  */
 
@@ -76,6 +76,8 @@ interface EventBase {
 export interface PlayerOnline extends EventBase {
   type: 'PlayerOnline';
   username: string;
+  /** IN_GAME after a reconnect during a game (D17). */
+  status: PlayerStatus;
 }
 
 export interface PlayerOffline extends EventBase {

@@ -1,0 +1,52 @@
+<section class="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+  <h1 class="sr-only">Partie n° {{ id() }}</h1>
+
+  @if (game(); as g) {
+    <div class="flex flex-col gap-8">
+      <app-round-timer
+        [round]="g.round"
+        [totalRounds]="g.settings.totalRounds"
+        [remainingMs]="remainingMs()"
+        [roundSeconds]="g.settings.roundSeconds"
+      />
+
+      <div class="flex flex-col items-center gap-3">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-muted-color">
+          Carte centrale
+        </h2>
+        <app-playing-card
+          [symbol]="g.deal.centerCard.symbol"
+          [color]="g.deal.centerCard.color"
+          size="lg"
+        />
+      </div>
+
+      <div class="min-h-12" aria-live="assertive" aria-atomic="true">
+        @if (feedback(); as f) {
+          <p-message [severity]="feedbackSeverity()" styleClass="justify-center font-semibold">{{
+            f.message
+          }}</p-message>
+        }
+      </div>
+
+      <app-claim-buttons [disabled]="claimPending()" (claim)="claim($event)" />
+
+      <app-players-board [rows]="rows()" />
+    </div>
+  } @else if (loadState() === 'failed') {
+    <div class="flex flex-col items-start gap-4">
+      <p>Impossible de charger la partie.</p>
+      <p-button label="Réessayer" icon="pi pi-refresh" (onClick)="retry()" />
+    </div>
+  } @else {
+    <div
+      class="flex flex-col items-center gap-6"
+      aria-busy="true"
+      aria-label="Chargement de la partie"
+    >
+      <p-skeleton height="2rem" width="100%" />
+      <p-skeleton height="10rem" width="7rem" />
+      <p-skeleton height="3rem" width="100%" />
+    </div>
+  }
+</section>
