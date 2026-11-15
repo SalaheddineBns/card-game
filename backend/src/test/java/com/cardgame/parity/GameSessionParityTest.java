@@ -47,7 +47,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Random;
 import java.util.random.RandomGenerator;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
@@ -65,7 +64,6 @@ import org.springframework.http.HttpStatus;
  * </ul>
  * Rules themselves are pinned by the engine parity tests; this class pins the orchestration.
  */
-@Disabled("pending port: game sessions (plan rows 10-14) - implement com.cardgame.game.GameService")
 class GameSessionParityTest {
 
     private static final Instant T0 = Instant.parse("2026-01-01T10:00:00Z");

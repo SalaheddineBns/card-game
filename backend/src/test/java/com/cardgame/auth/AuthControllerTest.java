@@ -19,6 +19,7 @@ import com.cardgame.player.Gender;
 import com.cardgame.player.PlayerService;
 import com.cardgame.player.UsernameTakenException;
 import com.cardgame.player.dto.PlayerDto;
+import com.cardgame.realtime.RealtimeSessionRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -51,6 +52,9 @@ class AuthControllerTest {
 
     @MockitoBean
     UserDetailsService userDetailsService;
+
+    @MockitoBean
+    RealtimeSessionRegistry realtimeSessions;
 
     // ---- register ----
 
@@ -228,6 +232,7 @@ class AuthControllerTest {
                 .andExpect(status().isNoContent());
 
         assertThat(session.isInvalid()).isTrue();
+        verify(realtimeSessions).closeAll(session.getId());
     }
 
     @Test

@@ -45,6 +45,10 @@ public final class SpaHttpClient {
         return send(path, json, false);
     }
 
+    public String baseUrl() {
+        return baseUri.toString();
+    }
+
     public Optional<String> cookie(String name) {
         return cookies.getCookieStore().get(baseUri).stream()
                 .filter(c -> c.getName().equals(name))

@@ -1,8 +1,9 @@
-# Copy to application-local.yml (gitignored) and run with SPRING_PROFILES_ACTIVE=local.
-# The committed `local` section of application.yml already enables the dev seed and non-secure cookies;
-# this file only holds machine-specific values and secrets.
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/cardgame
-    username: cardgame
-    password: change-me   # must match POSTGRES_PASSWORD in the root .env used by compose.yaml
+# Optional. Not needed for the normal local run: the `local` profile settings live in application.yml and
+# the database password comes from POSTGRES_PASSWORD in the repo-root .env (also used by docker compose).
+# Copy to application-local.yml (gitignored) only for machine-specific overrides, for example:
+#
+# spring:
+#   datasource:
+#     url: jdbc:postgresql://localhost:5433/cardgame
+# server:
+#   port: 8081

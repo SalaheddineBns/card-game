@@ -12,7 +12,6 @@ import com.cardgame.presence.dto.PlayerStatusChanged;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.Test;
  * called from LoginServlet line 100 and LogoutServlet line 28; home.jsp sidebar lines 17-34 (current user
  * excluded) and handler lines 126-153.
  */
-@Disabled("pending port: presence (plan row 7) - implement com.cardgame.presence.PresenceService")
 class PresenceParityTest {
 
     private static final Instant T0 = Instant.parse("2026-01-01T10:00:00Z");

@@ -23,7 +23,6 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -40,7 +39,6 @@ import org.springframework.http.HttpStatus;
  * <p>Legacy behaviour kept: the inviter is a player; the game starts only when <em>every</em> invitee has
  * accepted; the start carries the inviter's settings. Everything else below is a DECISION (D7, D10, D16).
  */
-@Disabled("pending port: invitations (plan rows 8-9) - implement com.cardgame.invitation.InvitationService")
 class InvitationFlowParityTest {
 
     private static final Instant T0 = Instant.parse("2026-01-01T10:00:00Z");

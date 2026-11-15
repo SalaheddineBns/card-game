@@ -1,7 +1,8 @@
 # Real-time protocol (STOMP)
 
-> **Status: PROPOSAL** (written by the transformer from the legacy `/userStatus` messages; updated with
-> user decisions D1-D21 from `docs/migration-plan.md`).
+> **Status: IMPLEMENTED** (backend, 2026-11-15): every destination and event below exists and is covered by
+> `StompGameFlowIntegrationTest` and the service parity tests. Originally written by the transformer from the
+> legacy `/userStatus` messages, with user decisions D1-D24 from `docs/migration-plan.md`.
 > The backend agent owns this file once it implements a destination: replace "proposed" with
 > "implemented" per row and fix any shape that changed. The frontend agent codes against this file.
 > Java types and service rules: `docs/migration-plan.md` → "Contract for backend: invitation and game services"
@@ -13,17 +14,21 @@
 | Item | Value |
 |---|---|
 | Endpoint | `/ws` (native WebSocket, same origin through the Angular dev proxy) |
-| Auth | The HTTP session cookie from `POST /api/auth/login`. No `?username=`; the principal is the logged-in player. Unauthenticated CONNECT is refused. |
-| CSRF | **Confirmed (backend, 2026-11-15):** send the raw value of the `XSRF-TOKEN` cookie in the STOMP `CONNECT` frame header `X-XSRF-TOKEN` (same name and value as the HTTP header). The server will accept the raw (unmasked) cookie value, as for HTTP. The cookie is rotated at login, so read it right before connecting. (STOMP endpoint not implemented yet: row 7.) |
+| Auth | The HTTP session cookie (`JSESSIONID`) from `POST /api/auth/login`, sent with the WebSocket handshake. No `?username=`; the principal is the logged-in player. A handshake without a valid session is refused with HTTP 401 (no socket). |
+| CSRF | **Implemented:** send the raw value of the `XSRF-TOKEN` cookie in the STOMP `CONNECT` frame header `X-XSRF-TOKEN` (same name and value as the HTTP header). The raw (unmasked) value is accepted. The cookie is rotated at login, so read it right before connecting (connect **after** login). A missing/wrong token → STOMP `ERROR` frame and no `CONNECTED`. |
+| Authorization | SUBSCRIBE allowed to `/user/queue/**` and `/topic/presence` for any logged-in player; `/topic/game/{id}` only for a player of that live game (D14); SEND only to `/app/**`. Anything else → STOMP `ERROR` frame (the subscription is not created). Treat an `ERROR` frame as fatal: disconnect and reconnect. |
+| Logout | `POST /api/auth/logout` closes every STOMP connection opened from that browser session (→ `PlayerOffline` when it was the player's last one, D15). |
+| Online | A player is online while ≥ 1 STOMP connection is open (D15): connect the socket in the lobby **and** on the game page. |
 | Application prefix | `/app` (client SEND) |
 | Broker prefixes | `/topic` (broadcast), `/queue` (per user, via `/user/queue/...`) |
 | Payload | JSON, UTF-8. Every event has a `type` field (discriminator) and a `sentAt` ISO-8601 instant. |
-| Heartbeat | 10 s / 10 s (proposed) |
+| Heartbeat | Server 10 s / 10 s (`heart-beat:10000,10000`). Clients should request e.g. `10000,10000` too. |
+| Error delivery | `Error` and `ClaimRejected` on `/user/queue/errors`: `Error` goes only to the tab that sent the failing frame; `ClaimRejected` goes to all of the claimer's tabs. |
 
 Rule: commands that need validation and a clear error (create/accept/decline invitation) go through REST
 (ProblemDetail errors). High-frequency in-game actions (claims) go through STOMP SEND.
 
-## Destinations (proposed)
+## Destinations (implemented)
 
 ### Subscriptions (server → client)
 
@@ -56,7 +61,7 @@ server drives round changes and the end of the game with its own timer.
 | `GET /api/games/{id}` | full `GameSnapshot` when the game page opens or reconnects (then follow `/topic/game/{id}`); 403 not a player, 404, 409 finished |
 | `GET /api/games/{id}/result` | result page; 403 not a player, 404, 409 still in progress |
 
-## Event shapes (proposed)
+## Event shapes (implemented)
 
 ```jsonc
 // /topic/presence
@@ -147,4 +152,5 @@ Notes:
 | 2026-11-15 | transformer | Initial proposal derived from legacy `/userStatus`. |
 | 2026-11-15 | transformer | Aligned with the services contract: `PlayerOnline.status`, `PlayerStatusChanged`, REST for pending invitations and current game, error codes, D22 game id. |
 | 2026-11-15 | transformer | Applied D7 (decline/expiry statuses), D8 (`ClaimRejected`, `dealVersion`), D3-D5 (draw-aware `GameFinished`), D9/D10 (settings), D16 (`IN_GAME`). |
+| 2026-11-15 | backend | Implemented all destinations and events (status IMPLEMENTED). Added: handshake 401, ERROR-frame behaviour for CSRF/forbidden SUBSCRIBE, logout closes sockets, `Error` only to the sending tab, heartbeats 10 s. No shape changes. |
 | 2026-11-15 | backend | Confirmed the CSRF `CONNECT` header (`X-XSRF-TOKEN`, raw cookie value). Added the `PlayerStatusChanged` example. No STOMP destination implemented yet (auth only). |

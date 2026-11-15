@@ -36,7 +36,19 @@ class OpenApiDocsIntegrationTest {
         assertThat((Object) JsonPath.read(docs.getBody(), "$.components.schemas.PlayerDto")).isNotNull();
         assertThat((Object) JsonPath.read(docs.getBody(), "$.components.schemas.RegisterRequest")).isNotNull();
         java.util.List<String> operationIds = JsonPath.read(docs.getBody(), "$.paths.*.*.operationId");
-        assertThat(operationIds).contains("register", "login", "logout", "me");
+        assertThat(operationIds).contains("register", "login", "logout", "me", "getMyProfile", "updateMyProfile",
+                "getOnlinePlayers", "createInvitation", "acceptInvitation", "declineInvitation",
+                "getPendingInvitations", "getCurrentGame", "getGame", "getGameResult");
+        // JSON endpoints declare application/json, never */*
+        assertThat(docs.getBody()).doesNotContain("\"*/*\"");
+        assertThat((Object) JsonPath.read(docs.getBody(),
+                "$.paths['/api/auth/login'].post.responses['200'].content['application/json']")).isNotNull();
+        // errors use the typed Problem schema with field errors
+        assertThat((String) JsonPath.read(docs.getBody(),
+                "$.paths['/api/auth/register'].post.responses['400'].content['application/problem+json'].schema.$ref"))
+                .isEqualTo("#/components/schemas/Problem");
+        assertThat((String) JsonPath.read(docs.getBody(), "$.components.schemas.Problem.properties.errors.items.$ref"))
+                .isEqualTo("#/components/schemas/FieldViolation");
         assertThat((String) JsonPath.read(docs.getBody(), "$.servers[0].url")).isEqualTo("/");
 
         Files.writeString(Path.of("target", "openapi.json"), docs.getBody());

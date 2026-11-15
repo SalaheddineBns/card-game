@@ -27,6 +27,8 @@ Legend for "Where": E = JPA entity / DB column, W = WebSocket JSON key or action
 | Round duration (timer) | `ValeurTimer` / `valeurTimer`, `timer`, `timerDuration` | E, W, U | Seconds per round. **The lobby label says "minutes per game" but game.jsp uses it as seconds per round.** |
 | Combination count | `NombreCombinaisons` / `nombreCombinaisons`, `combinaison` | E, W, U | Collected in the invite form, **never used by any rule** and never persisted. **Dropped** (D9): do not use in new code. |
 | Game mode | `ModeJeu` / `modeJeu` | E | Always the constant `"Normal"` in legacy. |
+| Game status | – | E | `games.status`: `IN_PROGRESS` (row created at start) → `FINISHED` (D22). Not the in-memory `GamePhase`. |
+| Live game / game session | – (legacy static fields) | C | In-memory state of a running game (`GameSession` in `GameSessionRegistry`), lost on restart (D22). |
 | Round | `Tour` (table `tours`), `tour`, `currentTour` | E, W, U | One timed period of a game. Translate as Round, **never "Turn"** (all players play simultaneously). |
 | Center card | `CarteCentrale` / `carteCentrale`, `centreCard`, `centerCards`, `CenterCard` | E, W, C | The shared card every player compares against. |
 | Card | `Carte` (table `cartes`), `carte` | E, W, C | See "two card models" below. |

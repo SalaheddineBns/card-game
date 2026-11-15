@@ -1,14 +1,19 @@
 spring:
   application:
     name: card-game-backend
+  # Local convenience: read the repo-root .env (the same file docker compose reads). Both paths are optional,
+  # so production (env vars only, no .env) is unaffected. Real env vars still win over .env values.
+  config:
+    import: optional:file:.env[.properties],optional:file:../.env[.properties]
   threads:
     virtual:
       enabled: true
   # Datasource: override with SPRING_DATASOURCE_URL / SPRING_DATASOURCE_USERNAME / SPRING_DATASOURCE_PASSWORD.
-  # The password has no default on purpose (env var or the gitignored application-local.yml).
+  # Locally the password falls back to POSTGRES_PASSWORD from the root .env (shared with docker compose).
   datasource:
-    url: jdbc:postgresql://localhost:5432/cardgame
-    username: cardgame
+    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB:cardgame}
+    username: ${POSTGRES_USER:cardgame}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:}}
   jpa:
     open-in-view: false
     hibernate:
@@ -41,6 +46,9 @@ management:
         include: health,info
 
 springdoc:
+  # error responses are documented explicitly with @ErrorResponses (schema "Problem")
+  override-with-generic-response: false
+  default-produces-media-type: application/json
   api-docs:
     path: /v3/api-docs
   swagger-ui:

@@ -2,6 +2,8 @@ package com.cardgame.game;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -9,7 +11,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
 
-/** A finished game (legacy {@code Partie}). One row per game (D6). */
+/** A game (legacy {@code Partie}): created IN_PROGRESS when it starts, FINISHED at the end (D6, D22). */
 @Entity
 @Table(name = "games")
 public class Game {
@@ -21,8 +23,15 @@ public class Game {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "played_at", nullable = false)
-    private Instant playedAt;
+    @Column(name = "started_at", nullable = false)
+    private Instant startedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 12)
+    private GameStatus status = GameStatus.IN_PROGRESS;
+
+    @Column(name = "finished_at")
+    private Instant finishedAt;
 
     @Column(name = "total_rounds", nullable = false)
     private int totalRounds;
@@ -36,8 +45,8 @@ public class Game {
     protected Game() {
     }
 
-    public Game(Instant playedAt, int totalRounds, int roundSeconds) {
-        this.playedAt = playedAt;
+    public Game(Instant startedAt, int totalRounds, int roundSeconds) {
+        this.startedAt = startedAt;
         this.totalRounds = totalRounds;
         this.roundSeconds = roundSeconds;
     }
@@ -46,8 +55,25 @@ public class Game {
         return id;
     }
 
-    public Instant getPlayedAt() {
-        return playedAt;
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public GameStatus getStatus() {
+        return status;
+    }
+
+    public Instant getFinishedAt() {
+        return finishedAt;
+    }
+
+    /** @throws IllegalStateException if already finished */
+    public void finish(Instant at) {
+        if (status == GameStatus.FINISHED) {
+            throw new IllegalStateException("Game " + id + " is already finished");
+        }
+        this.status = GameStatus.FINISHED;
+        this.finishedAt = at;
     }
 
     public int getTotalRounds() {
@@ -77,6 +103,6 @@ public class Game {
 
     @Override
     public String toString() {
-        return "Game{id=" + id + ", playedAt=" + playedAt + "}";
+        return "Game{id=" + id + ", status=" + status + "}";
     }
 }
