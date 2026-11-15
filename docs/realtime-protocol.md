@@ -4,6 +4,8 @@
 > user decisions D1-D21 from `docs/migration-plan.md`).
 > The backend agent owns this file once it implements a destination: replace "proposed" with
 > "implemented" per row and fix any shape that changed. The frontend agent codes against this file.
+> Java types and service rules: `docs/migration-plan.md` → "Contract for backend: invitation and game services"
+> (event records implement `com.cardgame.realtime.RealtimeEvent`; destinations are in `com.cardgame.realtime.Destinations`).
 > Legacy message catalogue: `docs/migration-plan.md` → "Legacy inventory" → "WebSocket messages".
 
 ## Connection
@@ -48,15 +50,19 @@ server drives round changes and the end of the game with its own timer.
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/players/online` | presence list when the lobby opens (then follow `/topic/presence`) |
-| `GET /api/games/{id}` | full `GameSnapshot` when the game page opens or reconnects (then follow `/topic/game/{id}`) |
-| `GET /api/games/{id}/result` | result page |
+| `GET /api/invitations/pending` | pending invitations of the caller (as inviter or invitee) when the lobby opens |
+| `POST /api/invitations`, `POST /api/invitations/{id}/accept`, `/decline` | invitation commands (`201`/`200` `InvitationDto`; 400/404/409 ProblemDetail) |
+| `GET /api/games/current` | snapshot of the caller's live game, or `204`: the lobby redirects to `/games/:id` after a reload (D17) |
+| `GET /api/games/{id}` | full `GameSnapshot` when the game page opens or reconnects (then follow `/topic/game/{id}`); 403 not a player, 404, 409 finished |
+| `GET /api/games/{id}/result` | result page; 403 not a player, 404, 409 still in progress |
 
 ## Event shapes (proposed)
 
 ```jsonc
 // /topic/presence
-{ "type": "PlayerOnline",  "username": "alice", "sentAt": "..." }
-{ "type": "PlayerOffline", "username": "alice", "sentAt": "..." }
+{ "type": "PlayerOnline",  "username": "alice", "status": "ONLINE" | "IN_GAME", "sentAt": "..." }   // IN_GAME after a reconnect during a game (D17)
+{ "type": "PlayerOffline", "username": "alice", "sentAt": "..." }                                  // last tab closed (D15)
+{ "type": "PlayerStatusChanged", "username": "alice", "status": "ONLINE" | "IN_GAME", "sentAt": "..." }
 // D16: status is "ONLINE" | "IN_GAME"; sent when a player enters or leaves a running game
 { "type": "PlayerStatusChanged", "username": "alice", "status": "IN_GAME", "sentAt": "2026-11-15T20:15:30Z" }
 
@@ -111,7 +117,11 @@ Notes:
   Only the first correct claim on a given version scores (D8).
 - Game events go only to the game's players (D14); a user may have several tabs, all receive them (D15).
 - A reconnecting player gets the current state from `GET /api/games/{id}` (D17).
-- `GameSnapshot` (REST) = `{ gameId, players, settings, phase, round, totalRounds, roundEndsAt, scores, deal }`.
+- `GameSnapshot` (REST) = `{ gameId, players, settings: {totalRounds, roundSeconds}, phase, round, roundEndsAt, scores, deal }`.
+- `GameResult` (REST) = `{ gameId, finishedAt, draw, winner, loser, leaders, topScore, trailers, bottomScore, scores }` (same rule as `GameFinished`).
+- The game id is the `games` row id, created when the game **starts** (D22).
+- Order on the user queue at game start: `InvitationUpdated(ACCEPTED)` (invitations queue), then `GameStarted` (games queue).
+- `Error` on `/user/queue/errors` comes from `@MessageExceptionHandler` when a STOMP handler throws a domain error (e.g. 403 not a player, 404 game not live).
 
 ## Legacy → new mapping
 
@@ -135,5 +145,6 @@ Notes:
 | Date | Author | Change |
 |---|---|---|
 | 2026-11-15 | transformer | Initial proposal derived from legacy `/userStatus`. |
+| 2026-11-15 | transformer | Aligned with the services contract: `PlayerOnline.status`, `PlayerStatusChanged`, REST for pending invitations and current game, error codes, D22 game id. |
 | 2026-11-15 | transformer | Applied D7 (decline/expiry statuses), D8 (`ClaimRejected`, `dealVersion`), D3-D5 (draw-aware `GameFinished`), D9/D10 (settings), D16 (`IN_GAME`). |
 | 2026-11-15 | backend | Confirmed the CSRF `CONNECT` header (`X-XSRF-TOKEN`, raw cookie value). Added the `PlayerStatusChanged` example. No STOMP destination implemented yet (auth only). |

@@ -31,15 +31,15 @@ lowest score loses, the game and participations are saved and player stats are u
 | 4 | Landing page | `webApp/index.jsp` (`main` L144-150), `cover.css`, `images/Bg.jpg` | — | `/` · `LandingPage` ("Speedest Game", "Jouer" → login) | — | specified | **D21**: French UI. |
 | 5 | Profile view | `controller/ProfileServlet.java#doGet` L53-70, `webApp/profile.jsp` (jQuery AJAX L9-35) | `GET /api/players/me` → `PlayerProfileDto {username, age, gender, gamesPlayed, victories, averageScore}` | `/profile` · `ProfilePage` | — | specified | Fix: no more `?username=` and never the password (B20). **D12**: click ratios not shown and not stored. |
 | 6 | Profile edit | `ProfileServlet#doPost` L93-122, `profile.jsp` form L132-243 | `PUT /api/players/me` `{age, gender?}` → `200` `PlayerProfileDto` | same page, "Update"/"Cancel"; success toast "Modification réussie!" | — | specified | Fix: no stale overwrite of stats (B21). **D11** gender select. **D19**: "Changer Mot de Passe" button hidden (out of scope). Username read-only. |
-| 7 | Online presence (lobby) | `LoginServlet.sessions` L27/L97-98, `UserStatusWebSocket#broadcast` L435-449, `#onOpen/#onClose` L42-57, `home.jsp` sidebar L17-34 + WS handler L121-153 | `GET /api/players/online` → `[{username, status: ONLINE \| IN_GAME}]`; STOMP `/topic/presence` (`PlayerOnline`, `PlayerOffline`, `PlayerStatusChanged`) | `/lobby` · `LobbyPage`, `OnlinePlayersPanel` | — (`PresenceServiceTest`) | specified | Online ⇔ ≥1 authenticated STOMP session (fixes B17). Current user excluded from the list (as legacy). **D15**: several tabs allowed, offline when the last tab disconnects. **D16**: players in a running game are shown `IN_GAME`. |
-| 8 | Invitations: create (game setup) | `home.jsp` game form L65-86 + `sendInvitation` L178-201, `UserStatusWebSocket#handleInvite` L278-304 | `POST /api/invitations` `{invitees: [username], settings: {totalRounds, roundSeconds}}` → `201` `InvitationDto {id, inviter, invitees[], accepted[], settings, status, expiresAt}`; each invitee gets `InvitationReceived` on `/user/queue/invitations`. `400` invalid settings/invitees; `409` invitee offline, in a game (D16) or already in a pending invitation | `/lobby` · `GameSetupForm` (rounds, seconds per round, multi-select of online players) | `InvitationFlowParityTest` (to write once the backend proposes the invitation service API) | specified | **D7**: only the selected players are invited (fixes B11), 1+ invitees, not self, no duplicates. **D9**: no "number of combinations". **D10**: rounds 1-20 (default 3), round 5-120 s (default 10). **D2**: label "seconds per round" (fixes B2). |
+| 7 | Online presence (lobby) | `LoginServlet.sessions` L27/L97-98, `UserStatusWebSocket#broadcast` L435-449, `#onOpen/#onClose` L42-57, `home.jsp` sidebar L17-34 + WS handler L121-153 | `GET /api/players/online` → `[{username, status: ONLINE \| IN_GAME}]`; STOMP `/topic/presence` (`PlayerOnline`, `PlayerOffline`, `PlayerStatusChanged`) | `/lobby` · `LobbyPage`, `OnlinePlayersPanel` | `PresenceParityTest` | specified | Online ⇔ ≥1 authenticated STOMP session (fixes B17). Current user excluded from the list (as legacy). **D15**: several tabs allowed, offline when the last tab disconnects. **D16**: players in a running game are shown `IN_GAME`. |
+| 8 | Invitations: create (game setup) | `home.jsp` game form L65-86 + `sendInvitation` L178-201, `UserStatusWebSocket#handleInvite` L278-304 | `POST /api/invitations` `{invitees: [username], settings: {totalRounds, roundSeconds}}` → `201` `InvitationDto {id, inviter, invitees[], accepted[], settings, status, expiresAt}`; each invitee gets `InvitationReceived` on `/user/queue/invitations`. `400` invalid settings/invitees; `409` invitee offline, in a game (D16) or already in a pending invitation | `/lobby` · `GameSetupForm` (rounds, seconds per round, multi-select of online players) | `InvitationFlowParityTest` | specified | **D7**: only the selected players are invited (fixes B11), 1+ invitees, not self, no duplicates. **D9**: no "number of combinations". **D10**: rounds 1-20 (default 3), round 5-120 s (default 10). **D2**: label "seconds per round" (fixes B2). |
 | 9 | Invitations: respond, cancel, expire | `home.jsp` `confirm()` L154-163, `UserStatusWebSocket#handleResponse` L306-321 | `POST /api/invitations/{id}/accept` / `/decline` → `200` `InvitationDto`; `InvitationUpdated` to inviter + all invitees on `/user/queue/invitations` | `InvitationDialog` (PrimeNG dialog, Accept / Decline, countdown to `expiresAt`) | same | specified | **D7**: game starts when **all** invitees accepted; **any decline cancels** the invitation (`status: DECLINED`, `declinedBy`) and notifies everyone (fixes B12); a pending invitation **expires after 60 s** (`status: EXPIRED`, notify everyone). Accept/decline on a non-pending invitation → `409`. |
-| 10 | Game start + card deal | `UserStatusWebSocket#beginGame` L379-432, `#generateGameCards` L452-466, `home.jsp` redirect handler L164-174 | When the last invitee accepts: `GameService` creates the game (id), state = `GameEngine.start(...)`; each player gets `GameStarted {gameId}` on `/user/queue/games`; `GET /api/games/{id}` → `GameSnapshotDto` | navigate to `/games/:id` · `GamePage`, `GameTable`, `PlayerCardList`, `CenterCard` | `CardGenerationParityTest`, `RoundTimerParityTest` | specified | Player order: inviter first, then invitees in invitation order (legacy order was arbitrary HashSet order). **D1**: keep the 11 symbols without `G`. ≥ 2 distinct players (D7). |
+| 10 | Game start + card deal | `UserStatusWebSocket#beginGame` L379-432, `#generateGameCards` L452-466, `home.jsp` redirect handler L164-174 | When the last invitee accepts: `GameService.startGame` first inserts the `games` row with status `IN_PROGRESS` (D22) to get the id, then state = `GameEngine.start(...)`; each player gets `GameStarted {gameId}` on `/user/queue/games`; `GET /api/games/{id}` → `GameSnapshotDto` | navigate to `/games/:id` · `GamePage`, `GameTable`, `PlayerCardList`, `CenterCard` | `CardGenerationParityTest`, `RoundTimerParityTest` | specified | Player order: inviter first, then invitees in invitation order (legacy order was arbitrary HashSet order). **D1**: keep the 11 symbols without `G`. ≥ 2 distinct players (D7). **D22**: game row created at start, live state in memory; `GET /api/games/current` for rejoin (D17). Contract: "invitation and game services"; tests: `GameSessionParityTest`. |
 | 11 | Rounds & timer | `game.jsp` `initializeGame` L104-118, `startTimer/resetTimer` L189-212, `finTour` handler L143-150; `UserStatusWebSocket` case `finTour` L77-81, `#handleFinTour` L264-276 | Server-driven: `TaskScheduler` per game fires at `roundEndsAt` → `GameEngine.roundTimerExpired` → `/topic/game/{id}` `RoundStarted {round, totalRounds, roundEndsAt, deal, scores}` or `GameFinished` | `RoundTimer` (countdown from `roundEndsAt`), notification "Time's up! Moving to the next round." (French per D21) | `RoundTimerParityTest` | specified | One server timer per game (fixes B9). Kept: N rounds of T s, new cards each round, scores carry over. **D2** seconds per round, **D10** limits. **D17**: a disconnected player's game continues, score kept, `GET /api/games/{id}` restores the view. |
 | 12 | Claims & scoring | `game.jsp` `handleSameColorButton` L255-273, `handleSameFormatButton` L274-293, `handleboth` L295-315; `UserStatusWebSocket#handleUpdateScore` L323-327, `#broadcastUpdatedScores` L330-342 | STOMP SEND `/app/game/{id}/claim` `{claim: SAME_COLOR\|SAME_SYMBOL\|BOTH, dealVersion}`; `GameEngine.claim` → `CORRECT`: `/topic/game/{id}` `ScoresUpdated {scores, deal, scoredBy}`; `WRONG`/`STALE`: `ClaimRejected {reason}` to the sender on `/user/queue/errors`, nothing broadcast | `ClaimButtons` ("The Same Color", "The Same Format", "The Two"; French labels per D21) | `ClaimScoringParityTest` | specified | Server-authoritative (fixes B10). **D8**: rule kept (+1 for any correct claim, BOTH = 1, no penalty), and only the **first correct claim per `dealVersion`** scores; a claim naming another version is `STALE`. |
-| 13 | Game end: result, persistence, stats | `game.jsp` L200-203 (`finPartie`); `UserStatusWebSocket#handleResult` L136-251, `#updatePlayerStats` L253-262; `dto/PartieManager.java`; `dao/PartieDao`, `ParticipationDAO`, `JoueurDao` | On `FINISHED`: one transaction saves a **new** `game` row + one `participation` per player + updated `player` stats (`PlayerStats.afterGame`); `/topic/game/{id}` `GameFinished {draw, winner?, loser?, leaders, topScore, trailers, bottomScore, scores}`; `GET /api/games/{id}/result` → `GameResultDto` (same fields) | — | `GameResultParityTest`, `PlayerStatsParityTest` | specified | **D3**: all-zero = draw, no victory (fixes B3). **D4**: tied leaders share a draw (no winner, no victory); tied trailers → no loser; never the same player as winner and loser (fixes B4). **D5**: only the final winner gets a victory (fixes B5). **D6**: one game row per game, stats and participation every game (fixes B6, B7, B8). **D14**: only the game's players receive the event. `game` stores `total_rounds`, `round_seconds`, `game_mode = 'Normal'`; no combinations (D9). |
+| 13 | Game end: result, persistence, stats | `game.jsp` L200-203 (`finPartie`); `UserStatusWebSocket#handleResult` L136-251, `#updatePlayerStats` L253-262; `dto/PartieManager.java`; `dao/PartieDao`, `ParticipationDAO`, `JoueurDao` | On `FINISHED`: one transaction (`GameRecorder.finishGame`) sets the game row created at start to `FINISHED` + `finished_at` (D22), adds one `participation` per player and updates `player` stats (`PlayerStats.afterGame`); `/topic/game/{id}` `GameFinished {draw, winner?, loser?, leaders, topScore, trailers, bottomScore, scores}`; `GET /api/games/{id}/result` → `GameResultDto` (same fields) | — | `GameResultParityTest`, `PlayerStatsParityTest`, `GameSessionParityTest` | specified | **D3**: all-zero = draw, no victory (fixes B3). **D4**: tied leaders share a draw (no winner, no victory); tied trailers → no loser; never the same player as winner and loser (fixes B4). **D5**: only the final winner gets a victory (fixes B5). **D6**: one game row per game, stats and participation every game (fixes B6, B7, B8). **D14**: only the game's players receive the event. `game` stores `total_rounds`, `round_seconds`, `game_mode = 'Normal'`, `status`, `started_at`, `finished_at` (D22); no combinations (D9). |
 | 14 | Result page | `webApp/WinnerPage.jsp` | `GET /api/games/{id}/result` | `/games/:id/result` · `GameResultPage` ("Gagnant", "Perdant", "Rejouer" → `/lobby`) | — | specified | **D20**: keep the winner/loser layout; the API also returns all scores. **D3/D4**: a draw shows "Égalité" with the tied leaders; no "Perdant" line when there is no single loser. Scores shown as integers (fixes B29). Legacy 2 s delay before showing: optional animation, not required. |
-| 15 | Schema + seed | `model/*.java`, `META-INF/persistence.xml`, `dto/MockData.java` | Flyway `V1__init.sql` (`player`, `game`, `participation`), dev-only seed migration | — | — (`@DataJpaTest` only for custom queries) | backend | **D12**: no `cartes`/`tours` tables, no click ratio/click count columns. **D9**: no combinations column. **D11**: `gender` nullable, check in (`MALE`,`FEMALE`,`OTHER`). **D13**: dev-only seed (separate Flyway location enabled only in the dev profile): `alice`, `bob`, `carol`, bcrypt hash of a dev password documented in the seed file, zero stats. **D18**: unique index on `lower(username)`. |
+| 15 | Schema + seed | `model/*.java`, `META-INF/persistence.xml`, `dto/MockData.java` | Flyway `V1__init_schema.sql` (`players`, `games`, `participations`), `V2__game_status.sql` (D22), dev-only seed migration | — | — (`@DataJpaTest` only for custom queries) | backend | **D12**: no `cartes`/`tours` tables, no click ratio/click count columns. **D9**: no combinations column. **D11**: `gender` nullable, check in (`MALE`,`FEMALE`,`OTHER`). **D13**: dev-only seed (separate Flyway location enabled only in the dev profile): `alice`, `bob`, `carol`, bcrypt hash of a dev password documented in the seed file, zero stats. **D18**: unique index on `lower(username)`. **D22**: `V2__game_status.sql` (status, `finished_at`, `played_at` → `started_at`), see the services contract. **D23**: passwords 8-72 characters (validation only, no column change). |
 | 16 | Unused legacy code | `controller/GameServlet.java` (`/game` endpoint), `UserStatusWebSocket#generateCards` L346-376, `dto/CardTables`, `webSocket/MainApp`, `model/Carte`, `model/Tour`, `enums/Forme`, `enums/Couleur`, `dao/CarteDao`, `dao/TourDao`, `test/UserStatusWebSocketTest` (all commented out) | not ported | — | — | specified | **D12**: not ported. |
 
 ## Legacy inventory
@@ -112,7 +112,7 @@ All messages are JSON objects with an `action` field. "All" = every open socket 
 | `Tour` → `tours` | `tourId`, `timestamp` | `partie` many-to-one (not null), `carteCentrale` one-to-one → `Carte` | **never written** |
 | `Carte` → `cartes` | `carteId`, `forme` (enum `Forme`, string), `couleur` (enum `Couleur`, string) | — | **never written** |
 
-Proposed new schema (backend agent owns the final Flyway SQL): `player(id, username unique, password_hash, age, gender, games_played, victories, average_score, created_at)`, `game(id, played_at, total_rounds, round_seconds, game_mode)`, `participation(id, game_id → game, player_id → player, score, unique(game_id, player_id))`. No combinations, click ratio or click count columns (D9, D12); `gender` nullable enum (D11); unique `lower(username)` (D18).
+Proposed new schema (backend agent owns the final Flyway SQL): `player(id, username unique, password_hash, age, gender, games_played, victories, average_score, created_at)`, `game(id, started_at, status IN_PROGRESS|FINISHED, finished_at, total_rounds, round_seconds, game_mode)` (D22, `V2`), `participation(id, game_id → game, player_id → player, score, unique(game_id, player_id))`. No combinations, click ratio or click count columns (D9, D12); `gender` nullable enum (D11); unique `lower(username)` (D18).
 
 ### DAOs
 
@@ -181,8 +181,11 @@ Decisions D1-D21 are listed under "Decisions" below.
 | D19 | "Changer Mot de Passe"? | Out of scope; hidden. |
 | D20 | Result page content? | Keep winner/loser layout; API returns all scores too. |
 | D21 | UI language? | French UI texts. |
+| D22 | When is the game row written? | A Flyway `V2` adds `games.status` (`IN_PROGRESS` → `FINISHED`) and `finished_at`, and renames `played_at` to `started_at`. The row is created when the game **starts**, so its id exists for `/topic/game/{id}` and rejoining. Live state stays in memory. |
+| D23 | Maximum password length? | 72 characters (bcrypt limit), `400` above. |
+| D24 | `Location` header on `201`? | Not for now: `POST /api/auth/register` and `POST /api/invitations` return `201` with a body and no `Location`. |
 
-No open questions remain.
+Open point (no decision needed yet): `IN_PROGRESS` games left behind by a server restart; see the end of "Contract for backend: invitation and game services".
 
 ## Contract for backend: game engine
 
@@ -288,6 +291,319 @@ scheduling (`TaskScheduler` calls `roundTimerExpired` at `roundEndsAt()`), seria
 (claims for one game must be applied one at a time so "first correct claim per `dealVersion`" holds),
 persistence (D6), messaging (D14), presence (D15, D16).
 
+## Contract for backend: invitation and game services
+
+Covers plan rows 5-14. The parity tests `PresenceParityTest`, `InvitationFlowParityTest` and `GameSessionParityTest` in
+`backend/src/test/java/com/cardgame/parity/` compile against the signatures below and run **without a
+Spring context**. They use fakes from the same package (`RecordingPublisher`, `FakeTaskScheduler`,
+`FakeGameRecorder`, `FakeGameLauncher`, `MutableClock`). Both classes are `@Disabled("pending port: ...")`;
+remove the annotation when the service is implemented.
+
+### Design rules
+
+- The services are plain classes with constructor injection (annotate them `@Service` / `@Component`).
+  No static mutable state. Every timestamp comes from the injected `Clock` and every delay from the injected
+  Spring `TaskScheduler` (only `schedule(Runnable, Instant)` and `ScheduledFuture#cancel` are used).
+- Messaging goes through the **port** `RealtimePublisher`. Its implementation (`StompRealtimePublisher`,
+  backed by `SimpMessagingTemplate`) is the only class that knows about STOMP.
+- Persistence for games goes through the **port** `GameRecorder`. Its implementation (`JpaGameRecorder`)
+  owns the transactions. Presence and invitations live in memory only. Live game state lives in memory too
+  (D22), and only the `games` row (with its status) and, at the end, participations and stats are stored.
+- Usernames are matched **ignoring case** (D18), and events and DTOs always carry the canonical spelling
+  (the spelling the player registered with, as known by `PresenceService`).
+- All exceptions extend the existing `com.cardgame.common.DomainException` (French `title`/`detail`, D21),
+  so the existing `GlobalExceptionHandler` turns them into ProblemDetail responses.
+- Every operation on one game (claims, timer ticks, snapshot reads) is serialised per game (for example
+  `synchronized` on the session object), so that "first correct claim per `dealVersion`" (D8) holds.
+
+### Ports and shared types
+
+```java
+package com.cardgame.realtime;
+
+/** Every server → client STOMP payload. The JSON must contain "type" = simple class name, and "sentAt". */
+public interface RealtimeEvent {
+    java.time.Instant sentAt();
+}
+
+public interface RealtimePublisher {
+    /** convertAndSendToUser(username, destination, event); destination like "/queue/invitations". */
+    void toUser(String username, String destination, RealtimeEvent event);
+    /** convertAndSend(destination, event); destination like "/topic/presence" or "/topic/game/7". */
+    void toTopic(String destination, RealtimeEvent event);
+}
+
+public final class Destinations {
+    public static final String PRESENCE_TOPIC    = "/topic/presence";
+    public static final String INVITATIONS_QUEUE = "/queue/invitations";
+    public static final String GAMES_QUEUE       = "/queue/games";
+    public static final String ERRORS_QUEUE      = "/queue/errors";
+    public static String gameTopic(long gameId) { return "/topic/game/" + gameId; }
+}
+```
+
+### Presence (row 7, D15, D16)
+
+```java
+package com.cardgame.presence;
+
+public enum PlayerStatus { ONLINE, IN_GAME }
+
+public class PresenceService {
+    public PresenceService(java.time.Clock clock, RealtimePublisher publisher);
+
+    /** STOMP session connected. First session of this user → PlayerOnline on PRESENCE_TOPIC. */
+    public void connected(String username, String sessionId);
+    /** STOMP session closed. Last session of this user → PlayerOffline on PRESENCE_TOPIC. Unknown ids are ignored. */
+    public void disconnected(String username, String sessionId);
+
+    /** Case-insensitive lookup of an ONLINE player (empty when offline). */
+    public Optional<OnlinePlayerDto> find(String username);
+    /** Online players except `excludedUsername` (ignoring case), sorted by username ignoring case. */
+    public List<OnlinePlayerDto> onlinePlayers(String excludedUsername);
+
+    /**
+     * Marks players as in a game (or not). The flag is kept while a player is offline (D17), so a player
+     * who reconnects during a game comes back as IN_GAME. For each player who is online and whose status
+     * changes → PlayerStatusChanged on PRESENCE_TOPIC.
+     */
+    public void setInGame(Collection<String> usernames, boolean inGame);
+}
+```
+
+```java
+package com.cardgame.presence.dto;
+public record OnlinePlayerDto(String username, PlayerStatus status) {}
+public record PlayerOnline(String username, PlayerStatus status, Instant sentAt) implements RealtimeEvent {}
+public record PlayerOffline(String username, Instant sentAt) implements RealtimeEvent {}
+public record PlayerStatusChanged(String username, PlayerStatus status, Instant sentAt) implements RealtimeEvent {}
+```
+
+The wiring is backend-only and is not covered by these tests: `@EventListener` for `SessionConnectedEvent` /
+`SessionDisconnectEvent` calls `connected` / `disconnected` with `principal.getName()` and the STOMP session id.
+
+### Invitations (rows 8-9, D7, D10, D16)
+
+```java
+package com.cardgame.invitation;
+
+public enum InvitationStatus { PENDING, ACCEPTED, DECLINED, EXPIRED }
+
+public class InvitationService {
+    public static final java.time.Duration EXPIRY = java.time.Duration.ofSeconds(60);
+
+    public InvitationService(java.time.Clock clock, org.springframework.scheduling.TaskScheduler scheduler,
+                             RealtimePublisher publisher, PresenceService presence, GameLauncher gameLauncher);
+
+    public InvitationDto create(String inviter, CreateInvitationRequest request);
+    public InvitationDto accept(long invitationId, String username);
+    public InvitationDto decline(long invitationId, String username);
+    /** PENDING invitations where `username` is the inviter or an invitee (lobby reload). */
+    public List<InvitationDto> pendingFor(String username);
+}
+
+public class InvalidInvitationException extends DomainException {}        // 400
+public class PlayerUnavailableException extends ConflictException {}      // 409
+public class InvitationNotFoundException extends NotFoundException {}     // 404
+public class InvitationClosedException extends ConflictException {}       // 409
+```
+
+```java
+package com.cardgame.invitation.dto;
+public record CreateInvitationRequest(
+        @NotEmpty List<@NotBlank String> invitees,
+        @Valid GameSettingsDto settings) {}            // null → GameSettings.defaults() (D10)
+public record InvitationDto(long id, String inviter, List<String> invitees, List<String> accepted,
+                            GameSettingsDto settings, InvitationStatus status, String declinedBy,
+                            Instant expiresAt, Long gameId) {}   // gameId set once ACCEPTED
+public record InvitationReceived(long invitationId, String inviter, List<String> invitees,
+                                 GameSettingsDto settings, Instant expiresAt, Instant sentAt) implements RealtimeEvent {}
+public record InvitationUpdated(long invitationId, InvitationStatus status, List<String> accepted,
+                                String declinedBy, Instant sentAt) implements RealtimeEvent {}
+```
+
+Rules (pinned by `InvitationFlowParityTest`; presence rules above by `PresenceParityTest`):
+
+1. **create**:
+   - Invitee names are resolved through `PresenceService.find` (case-insensitive) to canonical names, in request order.
+   - `InvalidInvitationException` (400) when the list is empty, names repeat (ignoring case), or it contains the inviter (ignoring case).
+   - `PlayerUnavailableException` (409) when an invitee is offline or `IN_GAME`, an invitee is in another PENDING invitation (as inviter or invitee), or the inviter is `IN_GAME` or already in a PENDING invitation.
+   - Settings are validated by `GameSettings` (D10 → 400 through bean validation on `GameSettingsDto`).
+   - On success: status PENDING, `expiresAt = now + 60 s`, ids start at 1 and increase. `InvitationReceived` goes to **each invitee only** on `INVITATIONS_QUEUE`. The inviter gets the 201 response and no event. An expiry task is scheduled at `expiresAt`.
+   - A rejected request publishes nothing and schedules nothing.
+2. **accept**:
+   - `InvitationNotFoundException` (404) when the id is unknown or the user is not an invitee (the inviter included).
+   - `InvitationClosedException` (409) when the status is not PENDING.
+   - Accepting twice is idempotent: same DTO, no event.
+   - Otherwise the user is added to `accepted` (invitation order), and `InvitationUpdated` goes to the inviter and **every** invitee:
+     - still missing answers → status PENDING;
+     - all accepted → status ACCEPTED, the expiry task is cancelled, then `gameLauncher.startGame(players, settings)` is called with players = **inviter first, then invitees in invitation order**, and its id is stored in `gameId`.
+3. **decline**: same 404/409 checks. Status DECLINED, `declinedBy` = the user, `InvitationUpdated` goes to everyone, the expiry task is cancelled, and the game never starts. The participants are free for new invitations at once.
+4. **expiry**: when the task runs and the invitation is still PENDING → status EXPIRED and `InvitationUpdated` goes to everyone. In any other status it does nothing. After that, accept/decline → 409 and the participants are free again.
+5. Closed invitations (ACCEPTED/DECLINED/EXPIRED) may be dropped from memory. `pendingFor` lists only PENDING ones.
+
+### Games (rows 10-14, D3-D6, D8, D14, D17, D22)
+
+```java
+package com.cardgame.game;
+
+/** Implemented by GameService; InvitationService depends only on this. */
+public interface GameLauncher {
+    long startGame(List<String> players, GameSettings settings);
+}
+
+/** Persistence port. JpaGameRecorder implements it with Spring Data. */
+public interface GameRecorder {
+    /** INSERT games row with status IN_PROGRESS, started_at, settings; returns its id (D22). */
+    long createGame(GameSettings settings, java.time.Instant startedAt);
+    /**
+     * One transaction: status FINISHED + finished_at, one participation per record, and for each player
+     * stats = PlayerStats.afterGame(score, victory) (D6). Records are in player order.
+     */
+    void finishGame(long gameId, java.time.Instant finishedAt, List<PlayerGameRecord> records);
+    /** Only FINISHED games; records in player order (order by participation id). */
+    Optional<FinishedGame> findFinished(long gameId);
+}
+public record PlayerGameRecord(String username, int score, boolean victory) {}
+public record FinishedGame(long gameId, java.time.Instant finishedAt, List<PlayerGameRecord> records) {}
+
+/** In-memory live games (D22). Thread-safe. */
+public class GameSessionRegistry {
+    public GameSessionRegistry();
+    public boolean isLive(long gameId);
+    public Optional<Long> activeGameOf(String username);   // ignoring case
+    // registering/removing sessions: internal API, backend's choice
+}
+
+public class GameService implements GameLauncher {
+    public GameService(GameEngine engine, GameSessionRegistry sessions, GameRecorder recorder,
+                       PresenceService presence, RealtimePublisher publisher,
+                       org.springframework.scheduling.TaskScheduler scheduler, java.time.Clock clock);
+
+    @Override public long startGame(List<String> players, GameSettings settings);
+    public void claim(long gameId, String username, Claim claim, int dealVersion);
+    public GameSnapshotDto snapshot(long gameId, String username);
+    public Optional<GameSnapshotDto> currentGameOf(String username);
+    public GameResultDto result(long gameId, String username);
+    /** Used by the STOMP SUBSCRIBE guard for /topic/game/{id}: live game and username is a player. */
+    public boolean isPlayer(long gameId, String username);
+}
+
+public class GameNotFoundException extends NotFoundException {}      // 404
+public class NotAGamePlayerException extends DomainException {}       // 403
+public class GameFinishedException extends ConflictException {}       // 409
+public class GameInProgressException extends ConflictException {}     // 409
+```
+
+The engine is the `@Bean GameEngine(RandomGenerator, Clock)`, with the same `Clock` bean the service gets.
+
+```java
+package com.cardgame.game.dto;
+public record GameSettingsDto(@Min(1) @Max(20) int totalRounds, @Min(5) @Max(120) int roundSeconds) {
+    public GameSettings toSettings();
+    public static GameSettingsDto from(GameSettings settings);
+}
+public record PlayerScoreDto(String player, int score) {}
+public record CardDto(String symbol, String color) {}                       // "A", "red"
+public record PlayerCardDto(String player, String symbol, String color) {}
+public record DealDto(int dealVersion, List<PlayerCardDto> playerCards, CardDto centerCard) {}
+public record GameSnapshotDto(long gameId, List<String> players, GameSettingsDto settings, GamePhase phase,
+                              int round, Instant roundEndsAt, List<PlayerScoreDto> scores, DealDto deal) {}
+public record GameResultDto(long gameId, Instant finishedAt, boolean draw, String winner, String loser,
+                            List<String> leaders, int topScore, List<String> trailers, int bottomScore,
+                            List<PlayerScoreDto> scores) {}
+// events
+public record GameStarted(long gameId, Instant sentAt) implements RealtimeEvent {}
+public record ScoresUpdated(long gameId, String scoredBy, List<PlayerScoreDto> scores, DealDto deal,
+                            Instant sentAt) implements RealtimeEvent {}
+public record RoundStarted(long gameId, int round, int totalRounds, Instant roundEndsAt,
+                           List<PlayerScoreDto> scores, DealDto deal, Instant sentAt) implements RealtimeEvent {}
+public record GameFinished(long gameId, boolean draw, String winner, String loser, List<String> leaders,
+                           int topScore, List<String> trailers, int bottomScore, List<PlayerScoreDto> scores,
+                           Instant sentAt) implements RealtimeEvent {}
+public record ClaimRejected(long gameId, ClaimStatus reason, int currentDealVersion,
+                            Instant sentAt) implements RealtimeEvent {}
+```
+
+Rules (pinned by `GameSessionParityTest`):
+
+1. **startGame**:
+   - `recorder.createGame(settings, now)` comes **first**, and its id is the game id (D22).
+   - Then `engine.start(players, settings)`, the session is registered, `presence.setInGame(players, true)` is called, and the round timer is scheduled at `roundEndsAt()`.
+   - `GameStarted` goes to **each player** on `GAMES_QUEUE`, and to nobody else.
+2. **claim**:
+   - Errors: `GameNotFoundException` when the game is not live (unknown or finished), `NotAGamePlayerException` when the user is not a player.
+   - `CORRECT` → `ScoresUpdated(scoredBy = canonical name)` on `gameTopic(id)` only.
+   - `WRONG` / `STALE` → `ClaimRejected(reason, currentDealVersion)` to the claimer on `ERRORS_QUEUE` only. Nothing on the topic, and the score is unchanged.
+   - Claims do not move the timer.
+3. **round timer**: when it fires, `engine.roundTimerExpired`.
+   - `IN_PROGRESS` → `RoundStarted` on the game topic and the next tick is scheduled at the new `roundEndsAt()`.
+   - `FINISHED`:
+     - `engine.result` → records, with `victory` only for the single winner (D3-D5);
+     - `recorder.finishGame(id, now, records)`, exactly once per game (D6);
+     - `GameFinished` on the game topic;
+     - `presence.setInGame(players, false)`;
+     - the session is removed;
+     - no task stays scheduled.
+4. **snapshot**: the live view for a player: phase, round, `roundEndsAt`, scores in player order, the full deal with every player's card (as legacy).
+   - Errors: `NotAGamePlayerException` for others. For a game that is no longer live, `GameFinishedException` when `findFinished` has it, otherwise `GameNotFoundException`.
+   - `currentGameOf(username)` returns the snapshot of the user's live game, or empty. A player who disconnects and reconnects keeps their score and gets the snapshot (D17).
+5. **result**:
+   - From `recorder.findFinished`, recomputed with `GameEngine.determineResult` over the records in order (so `draw`/`winner`/`loser`/leaders/trailers match the `GameFinished` event).
+   - Errors: `GameInProgressException` when the game is still live, `NotAGamePlayerException` when the user is not in the records, `GameNotFoundException` otherwise.
+6. A player who disconnects mid-game is still a player. The timer keeps running and their score is recorded at the end (D17).
+
+### REST endpoints (all require a session, CSRF on unsafe methods; errors are ProblemDetail)
+
+| Method + path | Body → response | Errors |
+|---|---|---|
+| `GET /api/players/me` | → `200 PlayerProfileDto {username, age, gender, gamesPlayed, victories, averageScore}` | 401 |
+| `PUT /api/players/me` | `UpdateProfileRequest {age (@NotNull @Min(1)), gender?}` → `200 PlayerProfileDto` | 400, 401 |
+| `GET /api/players/online` | → `200 [OnlinePlayerDto]` (without the caller) | 401 |
+| `POST /api/invitations` | `CreateInvitationRequest` → `201 InvitationDto` (no `Location`, like register, D24) | 400 invalid, 409 unavailable |
+| `POST /api/invitations/{id}/accept` | → `200 InvitationDto` | 404, 409 closed |
+| `POST /api/invitations/{id}/decline` | → `200 InvitationDto` | 404, 409 closed |
+| `GET /api/invitations/pending` | → `200 [InvitationDto]` | 401 |
+| `GET /api/games/current` | → `200 GameSnapshotDto` or `204` | 401 |
+| `GET /api/games/{id}` | → `200 GameSnapshotDto` | 403 not a player, 404, 409 finished |
+| `GET /api/games/{id}/result` | → `200 GameResultDto` | 403 not a player, 404, 409 in progress |
+
+`PlayerService` gains `PlayerProfileDto getProfile(String username)` and
+`PlayerProfileDto updateProfile(String username, UpdateProfileRequest request)` (plus the stats update used by
+`JpaGameRecorder`). Controller tests are the backend's (`@WebMvcTest`).
+
+### STOMP
+
+| Kind | Destination | Handler |
+|---|---|---|
+| `@MessageMapping("/game/{gameId}/claim")` | client SEND `/app/game/{gameId}/claim`, payload `ClaimMessage(Claim claim, int dealVersion)` | `GameService.claim(gameId, principal.getName(), claim, dealVersion)` |
+| `@MessageExceptionHandler` + `@SendToUser("/queue/errors")` | — | a `DomainException` thrown by a handler → `Error {status, title, detail, sentAt}` |
+| SUBSCRIBE guard (`ChannelInterceptor`) | `/topic/game/{id}` | allowed only if `GameService.isPlayer(id, user)`; `/user/queue/*` and `/topic/presence` open to any authenticated user |
+| connect / disconnect listeners | — | `PresenceService.connected` / `disconnected` |
+
+### Flyway `V2` (D22)
+
+Do not edit `V1__init_schema.sql`; add `V2__game_status.sql`:
+
+```sql
+alter table games rename column played_at to started_at;
+alter index ix_games_played_at rename to ix_games_started_at;
+alter table games add column status varchar(12) not null default 'IN_PROGRESS';
+alter table games add column finished_at timestamptz;
+update games set status = 'FINISHED', finished_at = started_at;   -- rows written before V2 were finished games
+alter table games add constraint ck_games_status check (status in ('IN_PROGRESS', 'FINISHED'));
+alter table games add constraint ck_games_finished_at check ((status = 'FINISHED') = (finished_at is not null));
+```
+
+`Game` entity: `startedAt`, `status` (enum `GameStatus { IN_PROGRESS, FINISHED }`), `finishedAt`, and `finish(Instant)`.
+Backend integration test to add: `JpaGameRecorderTest` (`@DataJpaTest` + Testcontainers): create → IN_PROGRESS,
+finish twice for the same players over two games → `games_played` 2, victories only for winners,
+participations per game, `findFinished` returns records in player order (D6).
+
+Open point (not decided, no player-visible effect today): `IN_PROGRESS` rows left behind when the server
+restarts (the live state is lost). With the contract above they answer 404 (snapshot and result). Proposed
+follow-up: mark them at startup with a new status `ABANDONED` (needs a user decision, see D22 notes).
+
 ## Hand-off log
 
 | Date | From → To | What |
@@ -295,3 +611,4 @@ persistence (D6), messaging (D14), presence (D15, D16).
 | 2026-11-15 | transformer → backend | Legacy moved to `legacy/`. Inventory + plan written. Parity tests for rows 10-13 in `backend/src/test/java/com/cardgame/parity/` (all `@Disabled`). Waiting on user decisions Q1-Q21 for behaviour changes; the backend can scaffold and implement rows 1-3, 15 and the game engine contract now. |
 | 2026-11-15 | user → transformer → backend | All recommendations accepted (D1-D21). Plan rows, bug decisions, engine contract and parity tests updated: draw-aware `GameResult`, `dealVersion` + `ClaimStatus`, `GameSettings` validation/defaults without combinations, ≥ 2 players. Only class-level `pending port` disables remain. Realtime proposal updated (invitation decline/expiry, `ClaimRejected`, draw shape). |
 | 2026-11-15 | backend → frontend, transformer | Rows 1-3 and 15 at `backend`: Spring Boot 4.1.2 scaffold, Flyway `V1__init_schema.sql` (tables `players`, `games`, `participations`), dev seed `db/seed/R__dev_seed_players.sql` (only with the `local` profile; alice/bob/carol, password `password123`), `/api/auth/register\|login\|logout\|me` (operationIds `register`, `login`, `logout`, `me`; response `PlayerDto {id, username, age, gender}`). Session cookie `JSESSIONID` plus CSRF cookie `XSRF-TOKEN`, sent back in the `X-XSRF-TOKEN` header. ProblemDetail `title`/`detail` in French, field errors in `errors[] {field, message}`. Game engine `com.cardgame.game.engine` implemented: all 5 parity classes enabled and passing (89 cases). Open point for rows 10/13: `games` holds only finished games (row 13), but row 10 needs a game id at start. Either keep ids in memory until the end or add a `status` column in V2. |
+| 2026-11-15 | user → transformer → backend | D22-D24 recorded. New section "Contract for backend: invitation and game services" (rows 5-14: ports `RealtimePublisher` / `GameRecorder` / `GameLauncher`, `PresenceService`, `InvitationService`, `GameService`, `GameSessionRegistry`, REST, STOMP, `V2__game_status.sql`). New `@Disabled` tests `PresenceParityTest`, `InvitationFlowParityTest`, `GameSessionParityTest` + fakes (checked: 129/129 parity cases pass against a throwaway reference of the contract on top of the real engine). `realtime-protocol.md` aligned. |
