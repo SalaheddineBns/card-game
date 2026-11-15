@@ -104,7 +104,7 @@ export class GamesService extends BaseService {
 
     /**
      * Live snapshot of a game
-     * Then follow /topic/game/{id}. 409 when the game is finished (use the result).
+     * Then follow /topic/game/{id}. 409 when the game is finished (use the result), 410 when it was interrupted by a server restart (D25).
      * @endpoint get /api/games/{id}
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
@@ -165,7 +165,7 @@ export class GamesService extends BaseService {
 
     /**
      * Result of a finished game
-     * 409 while the game is still in progress.
+     * 409 while the game is still in progress, 410 when it was interrupted (D25).
      * @endpoint get /api/games/{id}/result
      * @param requestParameters
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.

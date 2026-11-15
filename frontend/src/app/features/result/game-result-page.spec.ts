@@ -22,6 +22,7 @@ describe('GameResultPage', () => {
   it('shows the winner, the loser and every score', async () => {
     await renderResult({
       gameId: 34,
+      finishedAt: '2026-11-16T10:00:00Z',
       draw: false,
       winner: 'alice',
       loser: 'carol',
@@ -46,7 +47,10 @@ describe('GameResultPage', () => {
   it('shows a draw without a loser line when every score is equal', async () => {
     await renderResult({
       gameId: 34,
+      finishedAt: '2026-11-16T10:00:00Z',
       draw: true,
+      winner: null,
+      loser: null,
       leaders: ['alice', 'bob'],
       topScore: 0,
       trailers: [],
@@ -66,7 +70,9 @@ describe('GameResultPage', () => {
   it('keeps the loser line in a draw for first place with a single last player', async () => {
     await renderResult({
       gameId: 34,
+      finishedAt: '2026-11-16T10:00:00Z',
       draw: true,
+      winner: null,
       loser: 'carol',
       leaders: ['alice', 'bob'],
       topScore: 2,

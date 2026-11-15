@@ -16,7 +16,7 @@ export interface PlayerDto {
     /**
      * Optional (D11)
      */
-    gender?: PlayerDtoGenderEnum | null;
+    gender: PlayerDtoGenderEnum | null;
 }
 export enum PlayerDtoGenderEnum {
     MALE = 'MALE',

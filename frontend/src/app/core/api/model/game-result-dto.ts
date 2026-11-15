@@ -11,15 +11,21 @@ import { PlayerScoreDto } from './player-score-dto';
 
 
 export interface GameResultDto { 
-    gameId?: number;
-    finishedAt?: string;
-    draw?: boolean;
-    winner?: string;
-    loser?: string;
-    leaders?: Array<string>;
-    topScore?: number;
-    trailers?: Array<string>;
-    bottomScore?: number;
-    scores?: Array<PlayerScoreDto>;
+    gameId: number;
+    finishedAt: string;
+    draw: boolean;
+    /**
+     * null when there is no single winner (draw)
+     */
+    winner: string | null;
+    /**
+     * null when there is no single loser
+     */
+    loser: string | null;
+    leaders: Array<string>;
+    topScore: number;
+    trailers: Array<string>;
+    bottomScore: number;
+    scores: Array<PlayerScoreDto>;
 }
 

@@ -12,8 +12,8 @@ import { PlayerCardDto } from './player-card-dto';
 
 
 export interface DealDto { 
-    dealVersion?: number;
-    playerCards?: Array<PlayerCardDto>;
-    centerCard?: CardDto;
+    dealVersion: number;
+    playerCards: Array<PlayerCardDto>;
+    centerCard: CardDto;
 }
 

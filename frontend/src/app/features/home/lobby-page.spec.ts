@@ -37,6 +37,7 @@ function invitationDto(overrides: Partial<InvitationDto> = {}): InvitationDto {
     status: InvitationStatus.PENDING,
     declinedBy: null,
     expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    gameId: null,
     ...overrides,
   };
 }

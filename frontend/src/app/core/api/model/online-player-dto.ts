@@ -10,8 +10,8 @@
 
 
 export interface OnlinePlayerDto { 
-    username?: string;
-    status?: OnlinePlayerDtoStatusEnum;
+    username: string;
+    status: OnlinePlayerDtoStatusEnum;
 }
 export enum OnlinePlayerDtoStatusEnum {
     ONLINE = 'ONLINE',

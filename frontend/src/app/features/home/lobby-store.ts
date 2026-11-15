@@ -135,8 +135,8 @@ export class LobbyStore {
     try {
       const dtos = await firstValueFrom(this.players.getOnlinePlayers());
       const loaded = dtos
-        .filter((p) => p.username && !sameName(p.username, this.me()))
-        .map((p): OnlinePlayer => ({ username: p.username ?? '', status: p.status ?? 'ONLINE' }));
+        .filter((p) => !sameName(p.username, this.me()))
+        .map((p): OnlinePlayer => ({ username: p.username, status: p.status }));
       // Keep anything presence events added while the request was in flight.
       this._onlinePlayers.update((current) => mergePlayers(loaded, current));
     } catch {

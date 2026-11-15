@@ -10,7 +10,7 @@
 
 
 export interface PlayerScoreDto { 
-    player?: string;
-    score?: number;
+    player: string;
+    score: number;
 }
 

@@ -10,7 +10,27 @@
 
 
 export interface CardDto { 
-    symbol?: string;
-    color?: string;
+    symbol: CardDtoSymbolEnum;
+    color: CardDtoColorEnum;
 }
+export enum CardDtoSymbolEnum {
+    A = 'A',
+    B = 'B',
+    C = 'C',
+    D = 'D',
+    E = 'E',
+    F = 'F',
+    H = 'H',
+    I = 'I',
+    J = 'J',
+    K = 'K',
+    L = 'L'
+};
+export enum CardDtoColorEnum {
+    RED = 'red',
+    BLUE = 'blue',
+    GREEN = 'green'
+};
+
+
 

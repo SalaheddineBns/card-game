@@ -10,6 +10,7 @@ import { SKIP_ERROR_TOAST } from '../../core/http/skip-error-toast';
 import { NotificationService } from '../../core/notification/notification.service';
 import { Claim, GameEvent, UserErrorEvent } from '../../core/realtime/protocol';
 import { RealtimeService } from '../../core/realtime/realtime.service';
+import { ServerClock } from '../../core/realtime/server-clock';
 import { GameView, toGameView } from '../../shared/game/game-mappers';
 
 /** The store handles every snapshot error itself (409 → result, 410 → lobby...). */
@@ -35,6 +36,7 @@ export type LoadState = 'loading' | 'ready' | 'failed';
 export class GameStore {
   private readonly api = inject(GamesService);
   private readonly realtime = inject(RealtimeService);
+  private readonly serverClock = inject(ServerClock);
   private readonly auth = inject(AuthStore);
   private readonly router = inject(Router);
   private readonly notifications = inject(NotificationService);
@@ -106,9 +108,9 @@ export class GameStore {
 
   private async loadSnapshot(): Promise<void> {
     try {
-      const snapshot = toGameView(
-        await firstValueFrom(this.api.getGame({ id: this.gameId }, 'body', false, QUIET)),
-      );
+      const dto = await firstValueFrom(this.api.getGame({ id: this.gameId }, 'body', false, QUIET));
+      this.serverClock.observe(dto.serverTime);
+      const snapshot = toGameView(dto);
       if (snapshot.finished) {
         await this.goToResult();
         return;
@@ -171,6 +173,10 @@ export class GameStore {
       this._game.set({
         ...game,
         round: event.round,
+        // The event has no start instant: a round lasts exactly `roundSeconds`.
+        roundStartedAt: new Date(
+          Date.parse(event.roundEndsAt) - game.settings.roundSeconds * 1000,
+        ).toISOString(),
         roundEndsAt: event.roundEndsAt,
         scores: event.scores,
         deal: event.deal,

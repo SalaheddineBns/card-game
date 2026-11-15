@@ -4,7 +4,17 @@ import { render, screen, waitFor } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { MessageService } from 'primeng/api';
 import { Observable, Subject, of, throwError } from 'rxjs';
-import { GameSnapshotDto, GameSnapshotDtoPhaseEnum, GamesService } from '../../core/api';
+import {
+  CardDtoColorEnum,
+  CardDtoSymbolEnum,
+  DealDto,
+  GameSnapshotDto,
+  GameSnapshotDtoPhaseEnum,
+  GamesService,
+  PlayerCardDtoColorEnum,
+  PlayerCardDtoSymbolEnum,
+} from '../../core/api';
+import { ServerClock } from '../../core/realtime/server-clock';
 import { Deal, PlayerScore } from '../../core/realtime/protocol';
 import { ALICE, httpError, provideAuthApi, signIn } from '../../../testing/auth';
 import {
@@ -24,6 +34,16 @@ const DEAL_1: Deal = {
   centerCard: { symbol: 'B', color: 'red' },
 };
 
+/** DEAL_1 as the REST snapshot sends it (generated enums). */
+const DEAL_1_DTO: DealDto = {
+  dealVersion: 1,
+  playerCards: [
+    { player: 'alice', symbol: PlayerCardDtoSymbolEnum.B, color: PlayerCardDtoColorEnum.BLUE },
+    { player: 'bob', symbol: PlayerCardDtoSymbolEnum.K, color: PlayerCardDtoColorEnum.RED },
+  ],
+  centerCard: { symbol: CardDtoSymbolEnum.B, color: CardDtoColorEnum.RED },
+};
+
 const DEAL_2: Deal = {
   dealVersion: 2,
   playerCards: [
@@ -38,19 +58,23 @@ const SCORES_1: PlayerScore[] = [
   { player: 'bob', score: 0 },
 ];
 
-function snapshot(): GameSnapshotDto {
+function snapshot(overrides: Partial<GameSnapshotDto> = {}): GameSnapshotDto {
+  const now = Date.now();
   return {
     gameId: 34,
     players: ['alice', 'bob'],
     settings: { totalRounds: 3, roundSeconds: 10 },
     phase: GameSnapshotDtoPhaseEnum.IN_PROGRESS,
     round: 1,
-    roundEndsAt: new Date(Date.now() + 10_000).toISOString(),
+    roundStartedAt: new Date(now).toISOString(),
+    roundEndsAt: new Date(now + 10_000).toISOString(),
+    serverTime: new Date(now).toISOString(),
     scores: [
       { player: 'alice', score: 0 },
       { player: 'bob', score: 0 },
     ],
-    deal: DEAL_1,
+    deal: DEAL_1_DTO,
+    ...overrides,
   };
 }
 
@@ -84,6 +108,24 @@ describe('GamePage', () => {
     expect(screen.getByRole('img', { name: 'Carte B bleu' })).toBeInTheDocument();
     expect(screen.getByText('(vous)')).toBeInTheDocument();
     expect(realtime.watchGame).toHaveBeenCalledWith(34);
+  });
+
+  it("counts the round down on the server's clock, not the player's", async () => {
+    // The player's clock is 60 s behind the server: without the offset, 65 s would show.
+    const serverNow = Date.now() + 60_000;
+    await renderGame(() =>
+      of(
+        snapshot({
+          serverTime: new Date(serverNow).toISOString(),
+          roundStartedAt: new Date(serverNow - 5_000).toISOString(),
+          roundEndsAt: new Date(serverNow + 5_000).toISOString(),
+        }),
+      ),
+    );
+
+    expect(await screen.findByText('Manche 1 / 3')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/^[45] s$/)).toBeInTheDocument());
+    expect(TestBed.inject(ServerClock).offsetMs()).toBeGreaterThan(59_000);
   });
 
   it('sends a claim with the current deal version and locks the buttons until the answer', async () => {

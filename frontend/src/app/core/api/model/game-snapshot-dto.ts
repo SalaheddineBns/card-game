@@ -13,14 +13,19 @@ import { DealDto } from './deal-dto';
 
 
 export interface GameSnapshotDto { 
-    gameId?: number;
-    players?: Array<string>;
-    settings?: GameSettingsDto;
-    phase?: GameSnapshotDtoPhaseEnum;
-    round?: number;
-    roundEndsAt?: string;
-    scores?: Array<PlayerScoreDto>;
-    deal?: DealDto;
+    gameId: number;
+    players: Array<string>;
+    settings: GameSettingsDto;
+    phase: GameSnapshotDtoPhaseEnum;
+    round: number;
+    roundStartedAt: string;
+    roundEndsAt: string;
+    scores: Array<PlayerScoreDto>;
+    deal: DealDto;
+    /**
+     * Server clock when the snapshot was taken
+     */
+    serverTime: string;
 }
 export enum GameSnapshotDtoPhaseEnum {
     IN_PROGRESS = 'IN_PROGRESS',

@@ -5,7 +5,9 @@ import { defineConfig, devices } from '@playwright/test';
  * - backend on http://localhost:8080, started separately with the `local` profile
  *   (e.g. `cd backend && ./mvnw spring-boot:test-run`, which brings PostgreSQL up with Testcontainers);
  * - `ng serve` on :4300 (not 4200, so a dev server you already run is never mistaken for this one),
- *   started here, proxying /api and /ws to the backend (proxy.conf.json).
+ *   started here, proxying /api and /ws to the backend (proxy.conf.mjs).
+ * Point at another backend with BACKEND_URL (e.g. `BACKEND_URL=http://localhost:18080 npm run e2e`);
+ * the variable is passed to `ng serve` through the environment.
  */
 const PORT = 4300;
 

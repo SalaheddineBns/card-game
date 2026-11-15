@@ -12,7 +12,7 @@
 export interface PlayerProfileDto { 
     username: string;
     age: number;
-    gender?: PlayerProfileDtoGenderEnum | null;
+    gender: PlayerProfileDtoGenderEnum | null;
     gamesPlayed: number;
     victories: number;
     averageScore: number;

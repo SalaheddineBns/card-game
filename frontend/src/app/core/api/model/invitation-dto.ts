@@ -11,18 +11,18 @@ import { GameSettingsDto } from './game-settings-dto';
 
 
 export interface InvitationDto { 
-    id?: number;
-    inviter?: string;
-    invitees?: Array<string>;
-    accepted?: Array<string>;
-    settings?: GameSettingsDto;
-    status?: InvitationDtoStatusEnum;
-    declinedBy?: string | null;
-    expiresAt?: string;
+    id: number;
+    inviter: string;
+    invitees: Array<string>;
+    accepted: Array<string>;
+    settings: GameSettingsDto;
+    status: InvitationDtoStatusEnum;
+    declinedBy: string | null;
+    expiresAt: string;
     /**
      * Set once ACCEPTED
      */
-    gameId?: number | null;
+    gameId: number | null;
 }
 export enum InvitationDtoStatusEnum {
     PENDING = 'PENDING',

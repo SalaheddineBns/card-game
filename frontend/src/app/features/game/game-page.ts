@@ -59,6 +59,11 @@ export class GamePage {
     const game = this.game();
     return game ? Math.max(0, Date.parse(game.roundEndsAt) - this.now()) : 0;
   });
+  /** Round length from the server's own instants (`roundStartedAt` → `roundEndsAt`). */
+  protected readonly roundMs = computed(() => {
+    const game = this.game();
+    return game ? Date.parse(game.roundEndsAt) - Date.parse(game.roundStartedAt) : 0;
+  });
 
   protected readonly rows = computed<PlayerRow[]>(() => {
     const game = this.game();

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { ProgressBarModule } from 'primeng/progressbar';
 
-/** Round number and time left, driven by the server's `roundEndsAt` (no client timer decides anything). */
+/** Round number and time left, from the server's round instants (no client timer decides anything). */
 @Component({
   selector: 'app-round-timer',
   imports: [ProgressBarModule],
@@ -31,13 +31,17 @@ export class RoundTimer {
   readonly round = input.required<number>();
   readonly totalRounds = input.required<number>();
   readonly remainingMs = input.required<number>();
-  readonly roundSeconds = input.required<number>();
+  /** Full round length in ms (`roundEndsAt - roundStartedAt`). */
+  readonly roundMs = input.required<number>();
 
   protected readonly secondsLeft = computed(() =>
     Math.max(0, Math.ceil(this.remainingMs() / 1000)),
   );
   protected readonly percent = computed(() =>
-    Math.min(100, Math.max(0, (this.remainingMs() / (this.roundSeconds() * 1000)) * 100)),
+    Math.min(
+      100,
+      Math.max(0, this.roundMs() > 0 ? (this.remainingMs() / this.roundMs()) * 100 : 0),
+    ),
   );
   protected readonly urgent = computed(() => this.secondsLeft() <= 3);
 }
