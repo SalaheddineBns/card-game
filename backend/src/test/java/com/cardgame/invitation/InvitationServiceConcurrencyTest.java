@@ -17,6 +17,8 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
@@ -48,20 +50,25 @@ class InvitationServiceConcurrencyTest {
                 presence, slowLauncher);
         InvitationDto invitation = invitations.create("alice", new CreateInvitationRequest(List.of("bob"), null));
 
-        // when: bob's accept is inside startGame
-        CompletableFuture<InvitationDto> accepted =
-                CompletableFuture.supplyAsync(() -> invitations.accept(invitation.id(), "bob"));
-        assertThat(inStartGame.await(5, TimeUnit.SECONDS)).isTrue();
+        // Own threads: the common ForkJoinPool has a single worker on 2-CPU CI runners, and the blocked
+        // accept below would starve the second task.
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            // when: bob's accept is inside startGame
+            CompletableFuture<InvitationDto> accepted =
+                    CompletableFuture.supplyAsync(() -> invitations.accept(invitation.id(), "bob"), executor);
+            assertThat(inStartGame.await(5, TimeUnit.SECONDS)).isTrue();
 
-        // then: other operations run at once, and alice/bob can't be invited while their game starts
-        InvitationDto other = CompletableFuture
-                .supplyAsync(() -> invitations.create("carol", new CreateInvitationRequest(List.of("dave"), null)))
-                .get(2, TimeUnit.SECONDS);
-        assertThat(other.status()).isEqualTo(InvitationStatus.PENDING);
-        assertThatThrownBy(() -> invitations.create("dave", new CreateInvitationRequest(List.of("bob"), null)))
-                .isInstanceOf(PlayerUnavailableException.class);
+            // then: other operations run at once, and alice/bob can't be invited while their game starts
+            InvitationDto other = CompletableFuture
+                    .supplyAsync(() -> invitations.create("carol", new CreateInvitationRequest(List.of("dave"), null)),
+                            executor)
+                    .get(2, TimeUnit.SECONDS);
+            assertThat(other.status()).isEqualTo(InvitationStatus.PENDING);
+            assertThatThrownBy(() -> invitations.create("dave", new CreateInvitationRequest(List.of("bob"), null)))
+                    .isInstanceOf(PlayerUnavailableException.class);
 
-        release.countDown();
-        assertThat(accepted.get(5, TimeUnit.SECONDS).gameId()).isEqualTo(77L);
+            release.countDown();
+            assertThat(accepted.get(5, TimeUnit.SECONDS).gameId()).isEqualTo(77L);
+        }
     }
 }
