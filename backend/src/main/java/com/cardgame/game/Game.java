@@ -76,10 +76,13 @@ public class Game {
         this.finishedAt = at;
     }
 
-    /** @throws IllegalStateException if already finished */
+    /**
+     * @throws IllegalStateException unless IN_PROGRESS (an ABANDONED game stays abandoned, e.g. when a new instance
+     *     abandoned it at startup while the old one was still finishing it during a deploy)
+     */
     public void finish(Instant at) {
-        if (status == GameStatus.FINISHED) {
-            throw new IllegalStateException("Game " + id + " is already finished");
+        if (status != GameStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Game " + id + " is " + status);
         }
         this.status = GameStatus.FINISHED;
         this.finishedAt = at;

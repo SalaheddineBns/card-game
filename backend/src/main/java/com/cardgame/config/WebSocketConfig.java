@@ -2,6 +2,7 @@ package com.cardgame.config;
 
 import com.cardgame.realtime.RealtimeSessionRegistry;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.scheduling.TaskScheduler;
@@ -20,24 +21,30 @@ import org.springframework.web.socket.server.support.HttpSessionHandshakeInterce
  */
 @Configuration
 @EnableWebSocketMessageBroker
+@EnableConfigurationProperties(WebSocketProperties.class)
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     public static final long HEARTBEAT_MILLIS = 10_000;
 
     private final TaskScheduler heartbeatScheduler;
     private final RealtimeSessionRegistry sessionRegistry;
+    private final WebSocketProperties properties;
 
     public WebSocketConfig(@Qualifier("stompHeartbeatScheduler") TaskScheduler heartbeatScheduler,
-                           RealtimeSessionRegistry sessionRegistry) {
+                           RealtimeSessionRegistry sessionRegistry, WebSocketProperties properties) {
         this.heartbeatScheduler = heartbeatScheduler;
         this.sessionRegistry = sessionRegistry;
+        this.properties = properties;
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
+        var endpoint = registry.addEndpoint("/ws")
                 // keeps the HTTP session id on the socket so logout can close it
                 .addInterceptors(new HttpSessionHandshakeInterceptor());
+        if (!properties.allowedOriginPatterns().isEmpty()) {
+            endpoint.setAllowedOriginPatterns(properties.allowedOriginPatterns().toArray(String[]::new));
+        }
         // No setPreserveReceiveOrder(true): with it, frames rejected by an interceptor (bad CSRF on CONNECT,
         // forbidden SUBSCRIBE) are only logged and the client never gets an ERROR frame. Each game is
         // serialised in GameService, so claim correctness does not depend on inbound order.

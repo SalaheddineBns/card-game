@@ -1,0 +1,40 @@
+# Run the production image locally (prod profile) with its own PostgreSQL, isolated from the dev database.
+#   docker compose -f compose.prod-local.yaml up --build -d
+#   open http://localhost:8081
+#   docker compose -f compose.prod-local.yaml down        # add -v to drop the database
+# Uses POSTGRES_PASSWORD from .env (see .env.example).
+name: card-game-prod-local
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: cardgame
+      POSTGRES_USER: cardgame
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (see .env.example)}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cardgame -d cardgame"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    image: card-game:local
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/cardgame
+      SPRING_DATASOURCE_USERNAME: cardgame
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # local plain-http test only: Railway serves HTTPS, so production keeps Secure cookies
+      SERVER_SERVLET_SESSION_COOKIE_SECURE: "false"
+    ports:
+      - "127.0.0.1:8081:8080"
+
+volumes:
+  db-data:

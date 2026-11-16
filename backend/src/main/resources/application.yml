@@ -27,6 +27,8 @@ spring:
     default-property-inclusion: always
 
 server:
+  # Railway (and most PaaS) inject PORT
+  port: ${PORT:8080}
   error:
     include-stacktrace: never
     include-message: never

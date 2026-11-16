@@ -59,6 +59,10 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers("/api/**", "/ws/**", "/actuator/**").authenticated()
+                        // the Angular app (index.html, hashed assets, client-side routes such as /lobby):
+                        // public, the Angular authGuard decides what to show
+                        .requestMatchers(HttpMethod.GET, "/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((request, response, ex) ->

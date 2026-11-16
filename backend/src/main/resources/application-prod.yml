@@ -1,0 +1,43 @@
+# Production profile (Railway). Activated by the Docker image (SPRING_PROFILES_ACTIVE=prod).
+# Everything secret comes from env vars: SPRING_DATASOURCE_URL / _USERNAME / _PASSWORD.
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration      # never the dev seed
+  datasource:
+    hikari:
+      maximum-pool-size: 5                 # one instance, small Railway Postgres
+      minimum-idle: 1
+      connection-timeout: 10000            # ms
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+server:
+  # Railway terminates TLS at its proxy: trust X-Forwarded-* so HTTPS, the host and redirects are right
+  # (secure cookies, WebSocket same-origin check)
+  forward-headers-strategy: framework
+  shutdown: graceful
+  servlet:
+    session:
+      cookie:
+        secure: true
+
+# API docs are a development tool: disabled in production (the frontend generates its client at build time)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.web.socket.config.WebSocketMessageBrokerStats: WARN
