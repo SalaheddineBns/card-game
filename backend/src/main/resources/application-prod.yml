@@ -29,6 +29,14 @@ springdoc:
   swagger-ui:
     enabled: false
 
+cardgame:
+  # D29: the public demo is reset every day (all accounts and games deleted, demo players recreated).
+  # Disable with CARDGAME_DEMO_RESET_ENABLED=false; password via CARDGAME_DEMO_RESET_DEMO_PASSWORD.
+  demo-reset:
+    enabled: true
+    cron: "0 0 4 * * *"
+    zone: Europe/Paris
+
 management:
   endpoint:
     health:

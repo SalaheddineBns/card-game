@@ -26,6 +26,10 @@ public class GameSessionRegistry {
                 .findFirst();
     }
 
+    java.util.Collection<GameSession> all() {
+        return java.util.List.copyOf(sessions.values());
+    }
+
     void register(GameSession session) {
         if (sessions.putIfAbsent(session.gameId(), session) != null) {
             throw new IllegalStateException("Game " + session.gameId() + " is already live");

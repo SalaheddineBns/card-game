@@ -17,7 +17,7 @@ GitHub (main) ──push──▶ GitHub Actions CI (backend, frontend, docker b
 | File | Role |
 |---|---|
 | `Dockerfile` | node 24 builds the Angular app → JDK 25 packages the jar with the app in `static/` → runs on JRE 25 as a non-root user, `SPRING_PROFILES_ACTIVE=prod`, listens on `$PORT` |
-| `backend/src/main/resources/application-prod.yml` | Proxy-aware HTTPS (`forward-headers-strategy=framework`), Secure cookies, Swagger UI and `/v3/api-docs` **disabled**, Flyway on and no dev seed, Hikari pool of 5, graceful shutdown |
+| `backend/src/main/resources/application-prod.yml` | Proxy-aware HTTPS (`forward-headers-strategy=framework`), Secure cookies, Swagger UI and `/v3/api-docs` **disabled**, Flyway on and no dev seed, Hikari pool of 5, graceful shutdown, daily demo reset on (D29) |
 | `.github/workflows/ci.yml` | `./mvnw verify`, frontend lint, test and build, plus a Docker build without push. Railway waits for it |
 | `compose.prod-local.yaml` | Runs the production image locally with its own PostgreSQL |
 
@@ -80,9 +80,9 @@ green (Actions tab).
    - `https://<domain>/actuator/health` returns `{"groups":["liveness","readiness"],"status":"UP"}`.
    - `https://<domain>/` shows the landing page, and `https://<domain>/lobby` redirects to the login.
    - `https://<domain>/api/auth/me` returns 401 with a French ProblemDetail.
-8. **Create the first account.** There is **no seed in production** (alice, bob and carol exist only in the `local`
-   profile). Open the site, go to **Créer un compte**, register, then log in. Use a second browser or a private
-   window with a second account to try a game.
+8. **Log in.** On the first start the app creates the demo players `alice`, `bob` and `carol`, with the password
+   `demo1234` (or `CARDGAME_DEMO_RESET_DEMO_PASSWORD`). See "Daily demo reset" below. You can also register your own
+   account with **Créer un compte**. Use a second browser or a private window with a second account to try a game.
 
 ## Day to day
 
@@ -101,6 +101,31 @@ green (Actions tab).
   pending invitations are lost. Players reconnect automatically. Deploy when nobody is playing.
 - **Database access:** open the Postgres service, then **Data** (table browser), or **Connect** for a `psql`
   command.
+
+## Daily demo reset (D29)
+
+The public demo is reset every day at **04:00 Europe/Paris**. The reset:
+
+1. closes every WebSocket and invalidates every HTTP session, so everybody is logged out;
+2. drops the running games (their timers are cancelled), the pending invitations and the online list;
+3. in one transaction, deletes **all** participations, games and players (ids restart at 1), then recreates the
+   demo players `alice`, `bob` and `carol`, with zero stats and the demo password;
+4. logs one line: `Demo reset: closed … STOMP connection(s) and … HTTP session(s); … recreated demo players [...]`.
+
+Any account people registered during the day is deleted. On a fresh deploy with an empty database, the demo players
+are also created at startup (`Demo seed: created demo players …`), so they exist before the first 04:00 run.
+
+The reset runs on its own thread and doesn't touch the game timers. It is only active with the `prod` profile;
+development and tests have it off. Change it with service variables in Railway (then redeploy):
+
+| Variable | Default (prod) | Effect |
+|---|---|---|
+| `CARDGAME_DEMO_RESET_ENABLED` | `true` | `false` turns off both the daily reset and the startup seed (for a real, non-demo deployment) |
+| `CARDGAME_DEMO_RESET_CRON` | `0 0 4 * * *` | Spring cron with seconds first, e.g. `0 30 3 * * *` for 03:30, or `0 0 4 * * MON` for Mondays only |
+| `CARDGAME_DEMO_RESET_ZONE` | `Europe/Paris` | Time zone of the cron |
+| `CARDGAME_DEMO_RESET_DEMO_PASSWORD` | `demo1234` | Password of the demo players (8-72 characters). Applies to players created from then on, so at the next reset or seed |
+
+An invalid cron, zone or password stops the app at startup (the health check fails) instead of failing at 04:00.
 
 ## Running the production image locally
 

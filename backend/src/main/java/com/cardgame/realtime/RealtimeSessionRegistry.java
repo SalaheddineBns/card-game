@@ -39,6 +39,17 @@ public class RealtimeSessionRegistry {
         }
     }
 
+    /** Closes every open WebSocket (demo reset, D29). @return the number of sockets closed */
+    public int closeEverything() {
+        int count = 0;
+        for (String httpSessionId : java.util.List.copyOf(byHttpSession.keySet())) {
+            Set<WebSocketSession> sessions = byHttpSession.get(httpSessionId);
+            count += sessions == null ? 0 : sessions.size();
+            closeAll(httpSessionId);
+        }
+        return count;
+    }
+
     /** Closes every WebSocket opened from this HTTP session. */
     public void closeAll(String httpSessionId) {
         Set<WebSocketSession> sessions = byHttpSession.remove(httpSessionId);

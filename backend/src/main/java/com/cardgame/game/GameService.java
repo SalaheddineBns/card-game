@@ -148,6 +148,31 @@ public class GameService implements GameLauncher {
                 result.leaders(), result.topScore(), result.trailers(), result.bottomScore(), GameDtos.scores(scores));
     }
 
+    /**
+     * Drops every live game without recording it, and cancels its round timer (demo reset, D29). The rows are
+     * deleted by the caller, so nothing is published or persisted here.
+     *
+     * @return the number of live games dropped
+     */
+    public int discardLiveGames() {
+        int count = 0;
+        for (GameSession session : sessions.all()) {
+            synchronized (session) {
+                if (session.over()) {
+                    continue;
+                }
+                session.markOver();
+                if (session.timer() != null) {
+                    session.timer().cancel(false);
+                    session.timer(null);
+                }
+                sessions.remove(session.gameId());
+                count++;
+            }
+        }
+        return count;
+    }
+
     /** Used by the STOMP SUBSCRIBE guard for /topic/game/{id}. */
     public boolean isPlayer(long gameId, String username) {
         return sessions.find(gameId).flatMap(s -> s.player(username)).isPresent();

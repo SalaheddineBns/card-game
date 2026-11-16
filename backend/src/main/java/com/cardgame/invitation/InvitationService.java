@@ -143,6 +143,25 @@ public class InvitationService {
         return toDto(invitation);
     }
 
+    /**
+     * Drops every invitation and cancels the expiry tasks (demo reset, D29). Nobody is notified: the STOMP
+     * connections are closed before this runs.
+     *
+     * @return the number of invitations that were still pending
+     */
+    public synchronized int clearAll() {
+        int pending = 0;
+        for (Invitation invitation : invitations.values()) {
+            if (invitation.status == InvitationStatus.PENDING) {
+                pending++;
+            }
+            cancelExpiry(invitation);
+        }
+        invitations.clear();
+        nextId = 1;
+        return pending;
+    }
+
     public synchronized List<InvitationDto> pendingFor(String username) {
         return invitations.values().stream()
                 .filter(i -> i.status == InvitationStatus.PENDING && i.involves(username))

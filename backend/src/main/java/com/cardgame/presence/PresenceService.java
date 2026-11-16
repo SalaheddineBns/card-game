@@ -102,6 +102,19 @@ public class PresenceService {
         }
     }
 
+    /**
+     * Forgets everyone (demo reset, D29). Publishes nothing: the STOMP connections are closed first, and
+     * their late disconnect events are ignored because their sessions are unknown by then.
+     *
+     * @return the number of players that were online
+     */
+    public synchronized int clear() {
+        int count = online.size();
+        online.clear();
+        inGame.clear();
+        return count;
+    }
+
     private PlayerStatus statusOf(String key) {
         return inGame.contains(key) ? PlayerStatus.IN_GAME : PlayerStatus.ONLINE;
     }
