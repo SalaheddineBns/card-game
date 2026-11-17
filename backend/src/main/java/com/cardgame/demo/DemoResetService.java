@@ -7,6 +7,7 @@ import com.cardgame.player.PlayerService;
 import com.cardgame.player.dto.NewPlayer;
 import com.cardgame.presence.PresenceService;
 import com.cardgame.realtime.RealtimeSessionRegistry;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -90,22 +91,30 @@ public class DemoResetService {
         return result;
     }
 
-    /** Fresh deploy: creates the demo players when the players table is empty. @return players created */
-    public int seedIfEmpty() {
-        Integer created = transaction.execute(status -> count("players") == 0 ? createDemoPlayers() : 0);
+    /**
+     * Startup: creates the demo players that don't exist yet, whatever other players are in the table.
+     * Existing players (demo or not) are left untouched. @return players created
+     */
+    public int seedMissingDemoPlayers() {
+        Integer created = transaction.execute(status -> createDemoPlayers(
+                properties.demoUsers().stream().filter(u -> players.findCredentials(u).isEmpty()).toList()));
         int count = created == null ? 0 : created;
         if (count > 0) {
-            log.info("Demo seed: created demo players {}", properties.demoUsers());
+            log.info("Demo seed: created {} missing demo player(s)", count);
         }
         return count;
     }
 
     private int createDemoPlayers() {
-        for (String username : properties.demoUsers()) {
+        return createDemoPlayers(properties.demoUsers());
+    }
+
+    private int createDemoPlayers(List<String> usernames) {
+        for (String username : usernames) {
             // each player gets its own salt
             players.create(new NewPlayer(username, passwordEncoder.encode(properties.demoPassword()), 30, null));
         }
-        return properties.demoUsers().size();
+        return usernames.size();
     }
 
     private long count(String table) {

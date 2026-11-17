@@ -112,13 +112,20 @@ class DemoResetIntegrationTest {
     }
 
     @Test
-    void seedIfEmptyOnlyCreatesTheDemoPlayersWhenThereAreNoPlayers() {
+    void seedMissingDemoPlayersCreatesOnlyTheMissingOnesAndKeepsOtherPlayers() {
         demoReset.reset();
-        assertThat(demoReset.seedIfEmpty()).isZero();             // demo players already there
-        jdbc.execute("truncate table participations, games, players restart identity cascade");
+        assertThat(demoReset.seedMissingDemoPlayers()).isZero();   // demo players already there
+        jdbc.update("delete from players where username in ('bob', 'carol')");
+        loggedIn("reset_dave");                                     // a non-demo player in the table
 
-        assertThat(demoReset.seedIfEmpty()).isEqualTo(3);
-        assertThat(count("players")).isEqualTo(3);
+        assertThat(demoReset.seedMissingDemoPlayers()).isEqualTo(2);
+        assertThat(jdbc.queryForList("select username from players order by username", String.class))
+                .containsExactly("alice", "bob", "carol", "reset_dave");
+        SpaHttpClient bob = new SpaHttpClient(port);
+        bob.get("/api/auth/me");
+        assertThat(bob.post("/api/auth/login", """
+                {"username":"bob","password":"%s"}""".formatted("reset-test-pass")).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
     }
 
     private SpaHttpClient loggedIn(String username) {

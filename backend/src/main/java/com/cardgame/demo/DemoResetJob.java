@@ -36,10 +36,10 @@ public class DemoResetJob implements SchedulingConfigurer, DisposableBean {
         demoReset.reset();
     }
 
-    /** A fresh deploy gets the demo players before the first scheduled reset. */
+    /** The demo players exist right after a deploy, without waiting for the first scheduled reset. */
     @EventListener(ApplicationReadyEvent.class)
     public void seedOnStartup() {
-        demoReset.seedIfEmpty();
+        demoReset.seedMissingDemoPlayers();
     }
 
     @Override

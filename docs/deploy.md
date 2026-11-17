@@ -112,8 +112,9 @@ The public demo is reset every day at **04:00 Europe/Paris**. The reset:
    demo players `alice`, `bob` and `carol`, with zero stats and the demo password;
 4. logs one line: `Demo reset: closed … STOMP connection(s) and … HTTP session(s); … recreated demo players [...]`.
 
-Any account people registered during the day is deleted. On a fresh deploy with an empty database, the demo players
-are also created at startup (`Demo seed: created demo players …`), so they exist before the first 04:00 run.
+Any account people registered during the day is deleted. At every startup, the demo players that don't exist yet are
+also created (`Demo seed: created N missing demo player(s)`), even if other players are in the table, so they work
+right after a deploy, before the first 04:00 run. Existing players are not changed.
 
 The reset runs on its own thread and doesn't touch the game timers. It is only active with the `prod` profile;
 development and tests have it off. Change it with service variables in Railway (then redeploy):
